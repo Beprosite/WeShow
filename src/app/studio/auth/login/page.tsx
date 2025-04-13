@@ -125,9 +125,13 @@ export default function StudioLoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full ${DESIGN_PATTERNS.BUTTON.primary} px-6 py-3 rounded-full inline-flex items-center justify-center bg-[#00A3FF]/20 backdrop-blur-sm text-white shadow-lg shadow-[#00A3FF]/20 border border-[#00A3FF]/30 hover:bg-[#00A3FF]/30 transition-colors duration-200 ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`w-full px-6 py-3 rounded-full inline-flex items-center justify-center 
+                  bg-[#00A3FF]/20 backdrop-blur-sm text-white 
+                  shadow-lg shadow-[#00A3FF]/20 
+                  border border-[#00A3FF]/30 
+                  hover:bg-[#00A3FF]/30 hover:shadow-[#00A3FF]/30
+                  transition-all duration-200
+                  ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {loading ? 'Logging in...' : 'Login'}
               </button>

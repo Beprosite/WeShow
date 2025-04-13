@@ -4,9 +4,10 @@ import React, { useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import Image from 'next/image';
+import Link from 'next/link';
 import PhoneInput from '@/app/components/PhoneInputs';
-import Logo from '@/app/components/Logo';
 import EmailValidationStep from '@/app/components/EmailValidationStep';
+import { DESIGN_PATTERNS } from '@/app/shared/constants/DESIGN_SYSTEM';
 
 type FormData = {
   // Account Info
@@ -282,472 +283,200 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-6">
-            <Logo className="h-12" />
-          </div>
-          <h2 className="text-4xl font-bold mb-4">Complete Your Registration</h2>
-          <p className="text-xl text-gray-400">
-            You selected the <span className="capitalize font-semibold">{plan}</span> plan ({billing})
-          </p>
-        </div>
+    <div className={`min-h-screen ${DESIGN_PATTERNS.COLORS.background} text-white flex flex-col`}>
+      {/* Header */}
+      <header className={`${DESIGN_PATTERNS.LAYOUT.maxWidth} mx-auto flex justify-center items-center p-4`}>
+        <Link href="/" className="flex items-center">
+          <Image 
+            src="/images/Weshow-logo-white_300px.webp" 
+            alt="WeShow Logo" 
+            width={120} 
+            height={40} 
+            className="object-contain"
+          />
+        </Link>
+      </header>
 
-        {/* Progress Steps */}
-        <div className="flex justify-between mb-8 relative">
-          <div className="absolute top-1/2 h-1 w-full bg-gray-700 -translate-y-1/2 z-0"></div>
-          {[1, 2, 3].map((step) => (
-            <div
-              key={step}
-              className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-full ${
-                step <= currentStep ? 'bg-blue-600' : 'bg-gray-700'
-              } border-2 border-gray-800`}
-            >
-              <span className="text-sm">{step}</span>
-            </div>
-          ))}
-        </div>
+      {/* Registration Form */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className={`${DESIGN_PATTERNS.CARD.wrapper} w-full max-w-2xl mx-auto transform -translate-y-8`}>
+          <div className={`${DESIGN_PATTERNS.CARD.inner} p-6 md:p-8`}>
+            <h1 className={`text-2xl ${DESIGN_PATTERNS.TEXT.heading} mb-6 text-center`}>
+              Create Your Studio Account
+            </h1>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          {currentStep === 1 && (
-            <div className="bg-gray-800 p-6 rounded-xl space-y-6">
-              <h2 className="text-2xl font-semibold">Account Information</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Email * <span className="text-gray-400">(will be used as login)</span>
-                  </label>
-                  <input
-                    {...register("email")}
-                    defaultValue={validatedEmail}
-                    readOnly
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 opacity-75"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      First Name *
-                    </label>
-                    <input
-                      {...register("firstName", { required: "First name is required" })}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                      placeholder="First name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Last Name *
-                    </label>
-                    <input
-                      {...register("lastName", { required: "Last name is required" })}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                      placeholder="Last name"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Password *
-                  </label>
-                  <input
-                    type="password"
-                    {...register("password", { 
-                      required: "Password is required",
-                      minLength: {
-                        value: 6,
-                        message: "Password must be at least 6 characters"
-                      }
-                    })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                    placeholder="Enter password"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Confirm Password *
-                  </label>
-                  <input
-                    type="password"
-                    {...register("confirmPassword", {
-                      validate: value => value === watch('password') || "Passwords do not match"
-                    })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                    placeholder="Confirm password"
-                  />
-                </div>
+            {submitStatus.type === 'error' && (
+              <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4 mb-6">
+                {submitStatus.message}
               </div>
-            </div>
-          )}
-
-          {currentStep === 2 && (
-            <div className="bg-gray-800 p-6 rounded-xl space-y-6">
-              <h2 className="text-2xl font-semibold">Company Profile</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Company Logo
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <div className="relative w-24 h-24 bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center border-2 border-gray-600">
-                      {logoPreview ? (
-                        <Image
-                          src={logoPreview}
-                          alt="Company Logo"
-                          fill
-                          style={{ objectFit: 'cover' }}
-                          unoptimized
-                        />
-                      ) : (
-                        <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex flex-col space-y-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleLogoChange}
-                        accept="image/*"
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleLogoClick}
-                        disabled={isUploading}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
-                          ${isUploading 
-                            ? 'bg-gray-600 cursor-not-allowed' 
-                            : 'bg-blue-600 hover:bg-blue-500'}`}
-                      >
-                        {isUploading ? (
-                          <span className="flex items-center justify-center">
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Uploading...
-                          </span>
-                        ) : isLogoUploaded ? 'Replace Logo' : 'Upload Logo'}
-                      </button>
-                      <p className="text-xs text-gray-400">
-                        Recommended: Square image, max 5MB
-                      </p>
-                      {uploadError && (
-                        <p className="text-sm text-red-500">{uploadError}</p>
-                      )}
-                      {uploadSuccess && (
-                        <p className="text-sm text-green-500">Logo uploaded successfully!</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Company Name *
-                    </label>
-                    <input
-                      {...register("companyName", { required: "Company name is required" })}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                      placeholder="Enter company name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Phone *
-                    </label>
-                    <PhoneInput
-                      value={watch('phone') || ''}
-                      onChange={(phone: string) => setValue('phone', phone)}
-                      onCountryChange={(country: string) => setValue('country', country)}
-                      required={true}
-                    />
-                    {errors.phone && (
-                      <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Address *
-                    </label>
-                    <input
-                      {...register("address1", { required: "Address is required" })}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                      placeholder="Enter address"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        City *
-                      </label>
-                      <input
-                        {...register("city", { required: "City is required" })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                        placeholder="Enter city"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        State/Province *
-                      </label>
-                      <input
-                        {...register("stateProvince", { required: "State/Province is required" })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                        placeholder="Enter state/province"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Postal Code *
-                      </label>
-                      <input
-                        {...register("postalCode", { required: "Postal code is required" })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                        placeholder="Enter postal code"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Country *
-                      </label>
-                      <input
-                        {...register("country", { required: "Country is required" })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                        placeholder="Enter country"
-                        list="countries"
-                      />
-                      <datalist id="countries">
-                        <option value="Israel" />
-                        <option value="United States" />
-                        <option value="United Kingdom" />
-                        <option value="Canada" />
-                        <option value="Australia" />
-                      </datalist>
-                      {errors.country && (
-                        <p className="mt-1 text-sm text-red-500">{errors.country.message}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentStep === 3 && (
-            <div className="bg-gray-800 p-6 rounded-xl space-y-6">
-              <h2 className="text-2xl font-semibold">Payment Information</h2>
-              
-              {/* Toggle for using same address */}
-              <div className="flex items-center space-x-3 mb-4">
-                <input
-                  type="checkbox"
-                  id="useSameAddress"
-                  checked={useSameAddress}
-                  onChange={(e) => {
-                    setUseSameAddress(e.target.checked);
-                    if (e.target.checked) {
-                      // Copy studio address to billing address
-                      setValue('billingAddress1', watch('address1'));
-                      setValue('billingCity', watch('city'));
-                      setValue('billingStateProvince', watch('stateProvince'));
-                      setValue('billingPostalCode', watch('postalCode'));
-                      setValue('billingCountry', watch('country'));
-                    }
-                  }}
-                  className="h-4 w-4 text-blue-600 rounded border-gray-600 bg-gray-700 focus:ring-blue-500"
-                />
-                <label htmlFor="useSameAddress" className="text-sm text-gray-300">
-                  Use same address as studio details
-                </label>
-              </div>
-
-              {/* Billing Address Fields - Only show if not using same address */}
-              {!useSameAddress && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Billing Address *
-                    </label>
-                    <input
-                      {...register("billingAddress1", { required: !useSameAddress && "Billing address is required" })}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                      placeholder="Enter billing address"
-                    />
-                    {errors.billingAddress1 && (
-                      <p className="mt-1 text-sm text-red-500">{errors.billingAddress1.message}</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        City *
-                      </label>
-                      <input
-                        {...register("billingCity", { required: !useSameAddress && "City is required" })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                        placeholder="Enter city"
-                      />
-                      {errors.billingCity && (
-                        <p className="mt-1 text-sm text-red-500">{errors.billingCity.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        State/Province *
-                      </label>
-                      <input
-                        {...register("billingStateProvince", { required: !useSameAddress && "State/Province is required" })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                        placeholder="Enter state/province"
-                      />
-                      {errors.billingStateProvince && (
-                        <p className="mt-1 text-sm text-red-500">{errors.billingStateProvince.message}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Postal Code *
-                      </label>
-                      <input
-                        {...register("billingPostalCode", { required: !useSameAddress && "Postal code is required" })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                        placeholder="Enter postal code"
-                      />
-                      {errors.billingPostalCode && (
-                        <p className="mt-1 text-sm text-red-500">{errors.billingPostalCode.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Country *
-                      </label>
-                      <input
-                        {...register("billingCountry", { required: !useSameAddress && "Country is required" })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                        placeholder="Enter country"
-                      />
-                      {errors.billingCountry && (
-                        <p className="mt-1 text-sm text-red-500">{errors.billingCountry.message}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Payment Card Fields */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Card Number *
-                  </label>
-                  <input
-                    {...register("cardNumber", { required: "Card number is required" })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                    placeholder="Enter card number"
-                  />
-                  {errors.cardNumber && (
-                    <p className="mt-1 text-sm text-red-500">{errors.cardNumber.message}</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Expiry Date *
-                    </label>
-                    <input
-                      {...register("cardExpiry", { required: "Expiry date is required" })}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                      placeholder="MM/YY"
-                    />
-                    {errors.cardExpiry && (
-                      <p className="mt-1 text-sm text-red-500">{errors.cardExpiry.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      CVC *
-                    </label>
-                    <input
-                      {...register("cardCVC", { required: "CVC is required" })}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                      placeholder="Enter CVC"
-                    />
-                    {errors.cardCVC && (
-                      <p className="mt-1 text-sm text-red-500">{errors.cardCVC.message}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8">
-            {currentStep > 1 && (
-              <button
-                type="button"
-                onClick={prevStep}
-                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-              >
-                Previous
-              </button>
             )}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg ml-auto transition-colors flex items-center space-x-2 ${
-                isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>Processing...</span>
-                </>
-              ) : (
-                currentStep === 3 ? 'Complete Registration' : 'Next'
-              )}
-            </button>
-          </div>
 
-          {submitStatus.message && (
-            <div className={`p-4 rounded-lg ${
-              submitStatus.type === 'success' 
-                ? 'bg-green-800 text-green-100' 
-                : 'bg-red-800 text-red-100'
-            }`}>
-              {submitStatus.message}
-            </div>
-          )}
-        </form>
+            {!showRegistrationForm ? (
+              <EmailValidationStep 
+                onEmailValidated={handleEmailValidated}
+                initialEmail={validatedEmail}
+              />
+            ) : (
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                {/* Step 1: Account Information */}
+                {currentStep === 1 && (
+                  <div className="space-y-4">
+                    <h2 className={`text-xl ${DESIGN_PATTERNS.TEXT.heading} mb-4`}>Account Information</h2>
+                    
+                    <div>
+                      <label htmlFor="email" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                        Email
+                      </label>
+                      <input
+                        {...register('email', { required: true, validate: validateEmail })}
+                        type="email"
+                        id="email"
+                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                        placeholder="Enter your email"
+                      />
+                      {errors.email && (
+                        <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="password" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                        Password
+                      </label>
+                      <input
+                        {...register('password', { required: true, minLength: 8 })}
+                        type="password"
+                        id="password"
+                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                        placeholder="Create a password"
+                      />
+                      {errors.password && (
+                        <p className="text-red-500 text-sm mt-1">Password must be at least 8 characters</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="confirmPassword" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                        Confirm Password
+                      </label>
+                      <input
+                        {...register('confirmPassword', {
+                          required: true,
+                          validate: value => value === watch('password') || "Passwords don't match"
+                        })}
+                        type="password"
+                        id="confirmPassword"
+                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                        placeholder="Confirm your password"
+                      />
+                      {errors.confirmPassword && (
+                        <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Profile Information */}
+                {currentStep === 2 && (
+                  <div className="space-y-4">
+                    <h2 className={`text-xl ${DESIGN_PATTERNS.TEXT.heading} mb-4`}>Profile Information</h2>
+                    
+                    <div>
+                      <label htmlFor="companyName" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                        Company Name
+                      </label>
+                      <input
+                        {...register('companyName', { required: true })}
+                        type="text"
+                        id="companyName"
+                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                        placeholder="Enter your company name"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="phone" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                        Phone Number
+                      </label>
+                      <PhoneInput
+                        value={watch('phone')}
+                        onChange={(value) => setValue('phone', value)}
+                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      />
+                    </div>
+
+                    {/* Logo Upload */}
+                    <div>
+                      <label className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                        Company Logo
+                      </label>
+                      <div
+                        onClick={handleLogoClick}
+                        className="w-full h-32 bg-[#0A0A0A] border-2 border-dashed border-white/10 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#00A3FF]/30 transition-colors duration-200"
+                      >
+                        {logoPreview ? (
+                          <Image
+                            src={logoPreview}
+                            alt="Logo preview"
+                            width={100}
+                            height={100}
+                            className="object-contain"
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <p className="text-gray-400">Click to upload logo</p>
+                            <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleLogoChange}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                      </div>
+                      {uploadError && (
+                        <p className="text-red-500 text-sm mt-1">{uploadError}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Navigation Buttons */}
+                <div className="flex justify-between pt-4">
+                  {currentStep > 1 && (
+                    <button
+                      type="button"
+                      onClick={prevStep}
+                      className="px-6 py-3 rounded-full inline-flex items-center justify-center 
+                        bg-white/10 backdrop-blur-sm text-white 
+                        shadow-lg shadow-white/10 
+                        border border-white/20 
+                        hover:bg-white/20 hover:shadow-white/20
+                        transition-all duration-200"
+                    >
+                      Back
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className={`ml-auto px-6 py-3 rounded-full inline-flex items-center justify-center 
+                      bg-[#00A3FF]/20 backdrop-blur-sm text-white 
+                      shadow-lg shadow-[#00A3FF]/20 
+                      border border-[#00A3FF]/30 
+                      hover:bg-[#00A3FF]/30 hover:shadow-[#00A3FF]/30
+                      transition-all duration-200
+                      ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {currentStep < 3 ? 'Next' : isSubmitting ? 'Creating Account...' : 'Create Account'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
