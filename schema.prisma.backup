@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MasterAdmin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  studios   Studio[]
+}
+
+model Studio {
+  id               String      @id @default(cuid())
+  name             String
+  email            String      @unique
+  phone            String?
+  logoUrl          String?
+  isActive         Boolean     @default(true)
+  subscriptionTier String      @default("Free")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  masterAdminId    String
+  address          String?
+  contactEmail     String?
+  contactName      String?
+  contactPhone     String?
+  contactPosition  String?
+  industry         String?
+  studioSize       String?
+  website          String?
+  password         String
+  clients          Client[]
+  projects         Project[]
+  masterAdmin      MasterAdmin @relation(fields: [masterAdminId], references: [id])
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  name      String
+  studioId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  studio    Studio    @relation(fields: [studioId], references: [id])
+  projects  Project[]
+}
+
+model Project {
+  id        String          @id @default(cuid())
+  name      String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  clientId  String
+  studioId  String
+  sections  ProjectSection[]
+  client    Client          @relation(fields: [clientId], references: [id])
+  studio    Studio         @relation(fields: [studioId], references: [id])
+}
+
+model ProjectSection {
+  id          String   @id @default(cuid())
+  name        String   @default("Untitled")
+  order       Int      @default(0)
+  heroPhoto   String?
+  videos      Json?    // Array of video URLs and metadata
+  photos      Json?    // Array of photo URLs and metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+}

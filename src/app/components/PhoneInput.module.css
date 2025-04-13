@@ -1,0 +1,81 @@
+.phoneInputWrapper {
+  width: 100%;
+}
+
+.phoneInputWrapper :global(.react-phone-input-2) {
+  width: 100% !important;
+}
+
+.phoneInputWrapper :global(.form-control) {
+  width: 100% !important;
+  height: 42px !important;
+  background-color: rgb(55, 65, 81) !important;
+  border-color: rgb(75, 85, 99) !important;
+  color: white !important;
+  padding-left: 62px !important;
+  border-radius: 0.5rem !important;
+  font-size: 1rem !important;
+}
+
+.phoneInputWrapper :global(.flag-dropdown) {
+  background-color: rgb(55, 65, 81) !important;
+  border-color: rgb(75, 85, 99) !important;
+  border-radius: 0.5rem 0 0 0.5rem !important;
+  width: 50px !important;
+}
+
+.phoneInputWrapper :global(.selected-flag) {
+  width: 50px !important;
+  padding: 0 0 0 8px !important;
+  border-radius: 0.5rem 0 0 0.5rem !important;
+}
+
+.phoneInputWrapper :global(.flag) {
+  transform: scale(1.2) !important;
+}
+
+.phoneInputWrapper :global(.selected-flag .arrow) {
+  left: 28px !important;
+}
+
+.phoneInputWrapper :global(.country-list) {
+  background-color: rgb(55, 65, 81) !important;
+  color: white !important;
+  width: 300px !important;
+}
+
+.phoneInputWrapper :global(.country-list .country) {
+  padding: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.phoneInputWrapper :global(.country-list .country .flag) {
+  transform: scale(1.2) !important;
+  margin-right: 12px !important;
+}
+
+.phoneInputWrapper :global(.country-list .country .dial-code) {
+  color: rgb(156, 163, 175) !important;
+  font-size: 1rem !important;
+  margin-left: 8px !important;
+}
+
+.phoneInputWrapper :global(.country-list .country:hover) {
+  background-color: rgb(75, 85, 99) !important;
+}
+
+.phoneInputWrapper :global(.country-list .country.highlight) {
+  background-color: rgb(75, 85, 99) !important;
+}
+
+.phoneInputWrapper :global(.search) {
+  background-color: rgb(55, 65, 81) !important;
+  color: white !important;
+  padding: 10px !important;
+  font-size: 1rem !important;
+}
+
+.phoneInputWrapper :global(.search::placeholder) {
+  color: rgb(156, 163, 175) !important;
+} 

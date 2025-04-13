@@ -1,0 +1,81 @@
+require('dotenv').config({ path: '.env.local' });
+const { S3Client, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand } = require('@aws-sdk/client-s3');
+
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+  forcePathStyle: true
+});
+
+const S3_BUCKET_NAME = process.env.AWS_BUCKET_NAME || 'my-project-manager-studio-content-dev';
+
+async function cleanupBucket() {
+  try {
+    console.log('\n=== Starting cleanup ===');
+    console.log('Bucket:', S3_BUCKET_NAME);
+    console.log('AWS Config:', {
+      region: process.env.AWS_REGION,
+      bucketName: process.env.AWS_BUCKET_NAME,
+      hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
+      hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY
+    });
+    
+    // List all objects in the bucket
+    console.log('\nListing objects in bucket...');
+    const listCommand = new ListObjectsV2Command({
+      Bucket: S3_BUCKET_NAME
+    });
+
+    const { Contents } = await s3Client.send(listCommand);
+    console.log('\nCurrent bucket contents:');
+    console.log(Contents?.map(c => c.Key) || []);
+    
+    if (Contents && Contents.length > 0) {
+      console.log('\nDeleting existing objects...');
+      // Delete all existing objects
+      const deleteCommand = new DeleteObjectsCommand({
+        Bucket: S3_BUCKET_NAME,
+        Delete: {
+          Objects: Contents.map(({ Key }) => ({ Key }))
+        }
+      });
+
+      await s3Client.send(deleteCommand);
+      console.log('✓ Successfully deleted all existing objects');
+    } else {
+      console.log('No existing objects found in bucket');
+    }
+
+    // Create base folder structure
+    console.log('\nCreating registration logos folder...');
+    const command = new PutObjectCommand({
+      Bucket: S3_BUCKET_NAME,
+      Key: 'registration/logos/.keep',
+      Body: '' // Empty content
+    });
+
+    await s3Client.send(command);
+    console.log('✓ Successfully created registration logos folder');
+
+    return true;
+  } catch (error) {
+    console.error('\n❌ Error during cleanup:', error);
+    throw error;
+  }
+}
+
+async function main() {
+  console.log('\n=== Starting S3 bucket cleanup script ===');
+  try {
+    await cleanupBucket();
+    console.log('\n✓ Cleanup completed successfully');
+  } catch (error) {
+    console.error('\n❌ Cleanup failed:', error);
+    process.exit(1);
+  }
+}
+
+main(); 

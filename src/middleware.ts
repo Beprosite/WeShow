@@ -1,0 +1,119 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import * as jose from 'jose'
+import { JWT_SECRET } from '@/lib/config'
+
+// Create TextEncoder for jose
+const encoder = new TextEncoder()
+
+// Helper function to check if path should be excluded
+function isExcludedPath(pathname: string): boolean {
+  return (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname.includes('/favicon.ico') ||
+    pathname.startsWith('/api/studio/check-email') ||
+    pathname.startsWith('/api/studio/register') ||
+    pathname.startsWith('/api/studio/login') ||
+    pathname.startsWith('/studio/api/login') ||
+    pathname.startsWith('/studio/auth')
+  )
+}
+
+export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  console.log('Middleware checking path:', pathname)
+
+  // Skip middleware for excluded paths
+  if (isExcludedPath(pathname)) {
+    console.log('Skipping middleware for excluded path:', pathname)
+    return NextResponse.next()
+  }
+
+  // Handle studio routes (including API routes)
+  if (pathname.startsWith('/studio') || pathname.startsWith('/api/studio')) {
+    // Check Authorization header first
+    const authHeader = request.headers.get('Authorization')
+    let token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
+
+    // If no token in header, try to get from cookie
+    if (!token) {
+      token = request.cookies.get('studio_token')?.value
+    }
+
+    if (!token) {
+      console.log('No token found in headers or cookies')
+      // Only redirect to login for non-API routes
+      if (!pathname.startsWith('/api')) {
+        return NextResponse.redirect(new URL('/studio/auth/login', request.url))
+      }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    try {
+      const secret = encoder.encode(JWT_SECRET)
+      await jose.jwtVerify(token, secret)
+      console.log('Token verified successfully')
+      
+      // Clone the request headers and add the verified token
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set('Authorization', `Bearer ${token}`)
+      
+      // Return response with modified headers
+      const response = NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      })
+
+      // Ensure the cookie is set/refreshed
+      response.cookies.set('studio_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 // 7 days
+      })
+
+      return response
+    } catch (error) {
+      console.error('Token verification failed:', error)
+      // Only redirect to login for non-API routes
+      if (!pathname.startsWith('/api')) {
+        return NextResponse.redirect(new URL('/studio/auth/login', request.url))
+      }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  }
+
+  // Handle master admin routes
+  if (pathname.startsWith('/master-admin') && !pathname.includes('/login')) {
+    const token = request.cookies.get('token')?.value
+
+    if (!token) {
+      console.log('No admin token found, redirecting to login')
+      return NextResponse.redirect(new URL('/master-admin/login', request.url))
+    }
+
+    try {
+      const secret = encoder.encode(JWT_SECRET)
+      await jose.jwtVerify(token, secret)
+      console.log('Admin token verified successfully')
+      return NextResponse.next()
+    } catch (error) {
+      console.error('Admin token verification failed:', error)
+      return NextResponse.redirect(new URL('/master-admin/login', request.url))
+    }
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: [
+    // Protected studio routes
+    '/studio/:path*',
+    '/api/studio/:path*',
+    '/master-admin/:path*'
+  ]
+}
