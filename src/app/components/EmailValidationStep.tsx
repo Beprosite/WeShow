@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, setError } from 'react-hook-form';
 import Image from 'next/image';
 import Link from 'next/link';
 import PhoneInput from './PhoneInputs';
 import { DESIGN_PATTERNS } from '@/app/shared/constants/DESIGN_SYSTEM';
 import { useSearchParams } from 'next/navigation';
+import HumanVerificationPopup from './HumanVerificationPopup';
 
 type FormData = {
   // Account Info
@@ -22,6 +23,8 @@ type FormData = {
   stateProvince: string;
   postalCode: string;
   country: string;
+  industry: string;
+  website: string;
   
   // Payment Info (if not Free tier)
   billingAddress1: string;
@@ -50,7 +53,7 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string>('');
+  const [uploadError, setUploadError] = useState('');
   const [useSameAddress, setUseSameAddress] = useState(true);
   const [submitStatus, setSubmitStatus] = useState<{
     type: 'success' | 'error' | '';
@@ -58,7 +61,7 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
   }>({ type: '', message: '' });
   const [isLogoUploaded, setIsLogoUploaded] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string>('');
-  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailCheckStatus, setEmailCheckStatus] = useState<{
@@ -70,6 +73,16 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
   const [validatedEmail, setValidatedEmail] = useState(initialEmail || '');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false
+  });
+  const [showVerification, setShowVerification] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const handleLogoClick = () => {
     fileInputRef.current?.click();
@@ -79,51 +92,38 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      setUploadError('Please upload a valid image file (JPEG, PNG, GIF, or WEBP)');
-      return;
-    }
-
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError('File size must be less than 5MB');
-      return;
-    }
-
-    setLogoFile(file);
-    setUploadError('');
     setIsUploading(true);
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setLogoPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setUploadError('');
+    setUploadSuccess('');
 
     try {
+      // Generate a registration ID if not exists
+      const registrationId = localStorage.getItem('registrationId') || `reg-${Date.now()}`;
+      localStorage.setItem('registrationId', registrationId);
+
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('type', 'logo');
+      formData.append('registrationId', registrationId);
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/studio/upload/logo', {
         method: 'POST',
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Upload failed');
+        throw new Error(data.error || 'Failed to upload logo');
       }
 
-      const data = await response.json();
-      setLogoUrl(data.url);
+      // Create a preview URL for the uploaded file
+      const previewUrl = URL.createObjectURL(file);
+      setLogoPreview(previewUrl);
+      setLogoUrl(data.publicUrl);
+      setUploadSuccess('Logo uploaded successfully!');
       setIsLogoUploaded(true);
-      setUploadSuccess(true);
     } catch (error) {
-      console.error('Upload error:', error);
-      setUploadError('Failed to upload logo. Please try again.');
+      setUploadError(error instanceof Error ? error.message : 'Failed to upload logo');
     } finally {
       setIsUploading(false);
     }
@@ -149,23 +149,92 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
       }
       
       if (!data.available) {
+        setEmailCheckStatus({ isChecking: false, isAvailable: false, message: 'This email is already registered' });
         return 'This email is already registered';
       }
       
-      setEmailCheckStatus({ isChecking: false, isAvailable: true });
+      setEmailCheckStatus({ isChecking: false, isAvailable: true, message: 'Email is available' });
       return true;
     } catch (error) {
       console.error('Email check error:', error);
-      setEmailCheckStatus({ isChecking: false, isAvailable: false });
+      setEmailCheckStatus({ isChecking: false, isAvailable: false, message: 'Failed to verify email availability' });
       return 'Failed to verify email availability';
     }
   };
 
-  const nextStep = () => {
-    setCurrentStep(prev => Math.min(prev + 1, 3));
+  const handleEmailValidated = async (email: string) => {
+    const validationResult = await validateEmail(email);
+    if (validationResult === true) {
+      setValidatedEmail(email);
+      setShowVerification(true);
+    }
+  };
+
+  const handleVerificationComplete = () => {
+    setShowVerification(false);
+    setShowRegistrationForm(true);
+    setValue('email', validatedEmail);
+  };
+
+  const handleVerificationClose = () => {
+    setShowVerification(false);
+  };
+
+  const nextStep = async () => {
+    if (currentStep === 1) {
+      const isValid = await trigger([
+        'email',
+        'password',
+        'confirmPassword',
+        'firstName',
+        'lastName'
+      ]);
+      if (!isValid) return;
+      
+      // Check if password meets all requirements
+      const meetsPasswordRequirements = Object.values(passwordRequirements).every(Boolean);
+      if (!meetsPasswordRequirements) {
+        setSubmitStatus({
+          type: 'error',
+          message: 'Please ensure your password meets all requirements'
+        });
+        return;
+      }
+
+      setIsTransitioning(true);
+      setCurrentStep(2);
+      setIsTransitioning(false);
+    } else if (currentStep === 2) {
+      const isValid = await trigger([
+        'companyName',
+        'phone',
+        'address1',
+        'city',
+        'stateProvince',
+        'postalCode',
+        'country',
+        'industry',
+        'website'
+      ]);
+      if (!isValid) return;
+      
+      if (!isLogoUploaded) {
+        setSubmitStatus({
+          type: 'error',
+          message: 'Please upload a logo'
+        });
+        return;
+      }
+
+      setIsTransitioning(true);
+      setCurrentStep(3);
+      setIsTransitioning(false);
+    }
   };
 
   const prevStep = () => {
+    // Clear any error messages when going back
+    setSubmitStatus({ type: '', message: '' });
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
@@ -235,10 +304,15 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
     }
   };
 
-  const handleEmailValidated = (email: string) => {
-    setValidatedEmail(email);
-    setShowRegistrationForm(true);
-    setValue('email', email);
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const password = e.target.value;
+    const newRequirements = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password)
+    };
+    setPasswordRequirements(newRequirements);
   };
 
   return (
@@ -252,7 +326,7 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
               alt="WeShow Logo"
               width={120}
               height={40}
-              className="object-contain"
+              className="object-contain w-auto h-auto"
             />
           </Link>
         </div>
@@ -264,6 +338,60 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
             <h1 className={`text-2xl ${DESIGN_PATTERNS.TEXT.heading} mb-6 text-center`}>
               Create Your Studio Account
             </h1>
+
+            {/* Step Indicator */}
+            <div className="flex items-center justify-center mb-8">
+              <div className="flex items-center">
+                {/* Step 1 */}
+                <div className="flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center 
+                    ${!showRegistrationForm || currentStep >= 1 ? 'bg-[#00A3FF]/20 border border-[#00A3FF]' : 'bg-white/10 border border-white/20'}
+                    shadow-lg ${!showRegistrationForm || currentStep >= 1 ? 'shadow-[#00A3FF]/20' : 'shadow-white/10'}`}>
+                    <span className={`text-lg ${!showRegistrationForm || currentStep >= 1 ? 'text-[#00A3FF]' : 'text-white/40'}`}>1</span>
+                  </div>
+                  <span className={`text-xs mt-2 ${!showRegistrationForm || currentStep >= 1 ? 'text-[#00A3FF]' : 'text-white/40'}`}>Email</span>
+                </div>
+
+                {/* Connector Line */}
+                <div className={`w-16 h-0.5 ${showRegistrationForm ? 'bg-[#00A3FF]' : 'bg-white/20'}`}></div>
+
+                {/* Step 2 */}
+                <div className="flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center 
+                    ${showRegistrationForm && currentStep >= 2 ? 'bg-[#00A3FF]/20 border border-[#00A3FF]' : 'bg-white/10 border border-white/20'}
+                    shadow-lg ${showRegistrationForm && currentStep >= 2 ? 'shadow-[#00A3FF]/20' : 'shadow-white/10'}`}>
+                    <span className={`text-lg ${showRegistrationForm && currentStep >= 2 ? 'text-[#00A3FF]' : 'text-white/40'}`}>2</span>
+                  </div>
+                  <span className={`text-xs mt-2 ${showRegistrationForm && currentStep >= 2 ? 'text-[#00A3FF]' : 'text-white/40'}`}>Account</span>
+                </div>
+
+                {/* Connector Line */}
+                <div className={`w-16 h-0.5 ${showRegistrationForm && currentStep >= 2 ? 'bg-[#00A3FF]' : 'bg-white/20'}`}></div>
+
+                {/* Step 3 */}
+                <div className="flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center 
+                    ${showRegistrationForm && currentStep >= 3 ? 'bg-[#00A3FF]/20 border border-[#00A3FF]' : 'bg-white/10 border border-white/20'}
+                    shadow-lg ${showRegistrationForm && currentStep >= 3 ? 'shadow-[#00A3FF]/20' : 'shadow-white/10'}`}>
+                    <span className={`text-lg ${showRegistrationForm && currentStep >= 3 ? 'text-[#00A3FF]' : 'text-white/40'}`}>3</span>
+                  </div>
+                  <span className={`text-xs mt-2 ${showRegistrationForm && currentStep >= 3 ? 'text-[#00A3FF]' : 'text-white/40'}`}>Profile</span>
+                </div>
+
+                {/* Connector Line */}
+                <div className={`w-16 h-0.5 ${showRegistrationForm && currentStep === 3 ? 'bg-[#00A3FF]' : 'bg-white/20'}`}></div>
+
+                {/* Step 4 */}
+                <div className="flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center 
+                    ${showRegistrationForm && currentStep === 3 ? 'bg-[#00A3FF]/20 border border-[#00A3FF]' : 'bg-white/10 border border-white/20'}
+                    shadow-lg ${showRegistrationForm && currentStep === 3 ? 'shadow-[#00A3FF]/20' : 'shadow-white/10'}`}>
+                    <span className={`text-lg ${showRegistrationForm && currentStep === 3 ? 'text-[#00A3FF]' : 'text-white/40'}`}>4</span>
+                  </div>
+                  <span className={`text-xs mt-2 ${showRegistrationForm && currentStep === 3 ? 'text-[#00A3FF]' : 'text-white/40'}`}>Payment</span>
+                </div>
+              </div>
+            </div>
 
             {/* Display chosen tier */}
             <div className="mb-6 text-center">
@@ -294,16 +422,43 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
                   <label htmlFor="email" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
                     Email
                   </label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={validatedEmail}
-                    onChange={(e) => setValidatedEmail(e.target.value)}
-                    className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
-                    placeholder="Enter your email"
-                  />
+                  <div className="relative">
+                    <input
+                      type="email"
+                      id="email"
+                      value={validatedEmail}
+                      onChange={(e) => setValidatedEmail(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !emailCheckStatus.isChecking) {
+                          e.preventDefault();
+                          handleEmailValidated(validatedEmail);
+                        }
+                      }}
+                      className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      placeholder="Enter your email"
+                    />
+                    {!emailCheckStatus.isChecking && emailCheckStatus.isAvailable === true && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#00FFA3]">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                    {!emailCheckStatus.isChecking && emailCheckStatus.isAvailable === false && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
                   {emailCheckStatus.isChecking && (
-                    <p className="text-blue-500 text-sm mt-1">Checking email availability...</p>
+                    <p className="text-[#00A3FF] text-sm mt-1">Checking email availability...</p>
+                  )}
+                  {!emailCheckStatus.isChecking && emailCheckStatus.message && (
+                    <p className={`text-sm mt-1 ${emailCheckStatus.isAvailable ? 'text-[#00FFA3]' : 'text-red-500'}`}>
+                      {emailCheckStatus.message}
+                    </p>
                   )}
                 </div>
                 <button
@@ -319,19 +474,35 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
                 >
                   {emailCheckStatus.isChecking ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Checking...
+                      Validating...
                     </>
                   ) : (
                     'Validate Email'
                   )}
                 </button>
+
+                {showVerification && (
+                  <HumanVerificationPopup
+                    onComplete={handleVerificationComplete}
+                    onClose={handleVerificationClose}
+                  />
+                )}
               </div>
             ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (currentStep < 3) {
+                    nextStep();
+                  } else {
+                    handleSubmit(onSubmit)();
+                  }
+                }
+              }}>
                 {/* Step 1: Account Information */}
                 {currentStep === 1 && (
                   <div className="space-y-4">
@@ -355,15 +526,31 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
 
                     <div>
                       <label htmlFor="password" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
-                        Password
+                        Password <span className="text-white/50">(min. 8 characters)</span>
                       </label>
                       <div className="relative">
                         <input
-                          {...register('password', { required: true, minLength: 8 })}
+                          {...register('password', {
+                            required: "Password is required",
+                            validate: {
+                              length: (value) => value.length >= 8 || "Password must be at least 8 characters",
+                              hasUpperCase: (value) => /[A-Z]/.test(value) || "Password must contain an uppercase letter",
+                              hasLowerCase: (value) => /[a-z]/.test(value) || "Password must contain a lowercase letter",
+                              hasNumber: (value) => /[0-9]/.test(value) || "Password must contain a number"
+                            }
+                          })}
                           type={showPassword ? "text" : "password"}
                           id="password"
-                          className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10 pr-10"
+                          className={`w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border ${
+                            Object.values(passwordRequirements).every(Boolean)
+                              ? 'border-[#00FFA3] shadow-[0_0_0_1px_#00FFA3]'
+                              : errors.password ? 'border-red-500 shadow-[0_0_0_1px_#ef4444]' : 'border-white/10'
+                          } pr-10`}
                           placeholder="Create a password"
+                          onChange={(e) => {
+                            register('password').onChange(e);
+                            handlePasswordChange(e);
+                          }}
                         />
                         <button
                           type="button"
@@ -383,8 +570,25 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
                           )}
                         </button>
                       </div>
+                      
+                      {/* Password requirements feedback */}
+                      <div className="mt-2 text-sm text-white space-y-1">
+                        <div className={passwordRequirements.length ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • At least 8 characters
+                        </div>
+                        <div className={passwordRequirements.uppercase ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • One uppercase letter
+                        </div>
+                        <div className={passwordRequirements.lowercase ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • One lowercase letter
+                        </div>
+                        <div className={passwordRequirements.number ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • One number
+                        </div>
+                      </div>
+                      
                       {errors.password && (
-                        <p className="text-red-500 text-sm mt-1">Password must be at least 8 characters</p>
+                        <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
                       )}
                     </div>
 
@@ -400,7 +604,11 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
                           })}
                           type={showConfirmPassword ? "text" : "password"}
                           id="confirmPassword"
-                          className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10 pr-10"
+                          className={`w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border ${
+                            watch('confirmPassword') && watch('confirmPassword') === watch('password')
+                              ? 'border-[#00FFA3] shadow-[0_0_0_1px_#00FFA3]'
+                              : errors.confirmPassword ? 'border-red-500 shadow-[0_0_0_1px_#ef4444]' : 'border-white/10'
+                          } pr-10`}
                           placeholder="Confirm your password"
                         />
                         <button
@@ -487,10 +695,10 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
 
                     {/* Logo Upload */}
                     <div>
-                      <label className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                      <label className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1 text-center`}>
                         Company Logo
                       </label>
-                      <div className="flex items-center space-x-4">
+                      <div className="flex flex-col items-center space-y-4">
                         <div
                           onClick={handleLogoClick}
                           className={`w-24 h-24 rounded-lg border-2 border-dashed ${
@@ -506,7 +714,7 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
                               className="object-contain rounded-lg"
                             />
                           ) : (
-                            <span className="text-white/40">Upload Logo</span>
+                            <span className="text-white/40 text-center">Upload<br />Logo</span>
                           )}
                         </div>
                         <input
@@ -516,7 +724,7 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
                           className="hidden"
                           accept="image/*"
                         />
-                        <div className="flex-1">
+                        <div className="text-center">
                           {isUploading && (
                             <p className="text-blue-500 text-sm">Uploading...</p>
                           )}
@@ -524,7 +732,7 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
                             <p className="text-red-500 text-sm">{uploadError}</p>
                           )}
                           {uploadSuccess && (
-                            <p className="text-green-500 text-sm">Logo uploaded successfully!</p>
+                            <p className="text-green-500 text-sm">{uploadSuccess}</p>
                           )}
                         </div>
                       </div>
@@ -776,16 +984,15 @@ export default function EmailValidationStep({ onEmailValidated, initialEmail }: 
                       transition-all duration-200
                       disabled:opacity-50 disabled:cursor-not-allowed
                       ml-auto"
-                    disabled={isSubmitting}
+                    disabled={isTransitioning}
                   >
-                    {isSubmitting ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                    {isTransitioning ? (
+                      <div className="flex items-center">
+                        <div className="w-5 h-5 mr-2">
+                          <div className="w-full h-full border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        </div>
                         Processing...
-                      </>
+                      </div>
                     ) : (
                       currentStep === 3 ? 'Complete Registration' : 'Next'
                     )}

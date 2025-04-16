@@ -45,7 +45,12 @@ export async function middleware(request: NextRequest) {
       console.log('No token found in headers or cookies')
       // Only redirect to login for non-API routes
       if (!pathname.startsWith('/api')) {
-        return NextResponse.redirect(new URL('/studio/auth/login', request.url))
+        const response = NextResponse.redirect(new URL('/studio/auth/login', request.url))
+        // Add cache control headers to prevent caching
+        response.headers.set('Cache-Control', 'no-store, max-age=0')
+        response.headers.set('Pragma', 'no-cache')
+        response.headers.set('Expires', '0')
+        return response
       }
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -66,6 +71,11 @@ export async function middleware(request: NextRequest) {
         },
       })
 
+      // Add cache control headers to prevent caching
+      response.headers.set('Cache-Control', 'no-store, max-age=0')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
+
       // Ensure the cookie is set/refreshed
       response.cookies.set('studio_token', token, {
         httpOnly: true,
@@ -80,7 +90,12 @@ export async function middleware(request: NextRequest) {
       console.error('Token verification failed:', error)
       // Only redirect to login for non-API routes
       if (!pathname.startsWith('/api')) {
-        return NextResponse.redirect(new URL('/studio/auth/login', request.url))
+        const response = NextResponse.redirect(new URL('/studio/auth/login', request.url))
+        // Add cache control headers to prevent caching
+        response.headers.set('Cache-Control', 'no-store, max-age=0')
+        response.headers.set('Pragma', 'no-cache')
+        response.headers.set('Expires', '0')
+        return response
       }
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -92,17 +107,32 @@ export async function middleware(request: NextRequest) {
 
     if (!token) {
       console.log('No admin token found, redirecting to login')
-      return NextResponse.redirect(new URL('/master-admin/login', request.url))
+      const response = NextResponse.redirect(new URL('/master-admin/login', request.url))
+      // Add cache control headers to prevent caching
+      response.headers.set('Cache-Control', 'no-store, max-age=0')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
+      return response
     }
 
     try {
       const secret = encoder.encode(JWT_SECRET)
       await jose.jwtVerify(token, secret)
       console.log('Admin token verified successfully')
-      return NextResponse.next()
+      const response = NextResponse.next()
+      // Add cache control headers to prevent caching
+      response.headers.set('Cache-Control', 'no-store, max-age=0')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
+      return response
     } catch (error) {
       console.error('Admin token verification failed:', error)
-      return NextResponse.redirect(new URL('/master-admin/login', request.url))
+      const response = NextResponse.redirect(new URL('/master-admin/login', request.url))
+      // Add cache control headers to prevent caching
+      response.headers.set('Cache-Control', 'no-store, max-age=0')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
+      return response
     }
   }
 

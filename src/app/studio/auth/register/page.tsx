@@ -66,6 +66,13 @@ export default function RegisterPage() {
   }>({ isChecking: false });
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [validatedEmail, setValidatedEmail] = useState('');
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false
+  });
 
   const handleLogoClick = () => {
     fileInputRef.current?.click();
@@ -111,34 +118,46 @@ export default function RegisterPage() {
         });
 
         if (!response.ok) {
-          const text = await response.text();
+          const errorData = await response.json();
           console.error('Upload failed:', {
             status: response.status,
             statusText: response.statusText,
-            responseText: text
+            error: errorData
           });
-          throw new Error(`Upload failed: ${response.statusText}`);
+          throw new Error(errorData.error || 'Upload failed');
         }
 
         const data = await response.json();
         console.log('Upload response:', data);
 
-        if (data.success && data.publicUrl) {
-          console.log('Setting logo preview:', data.publicUrl);
-          setLogoPreview(data.publicUrl);
-          setLogoUrl(data.publicUrl);
+        if (data.uploadUrl) {
+          // Upload the file to the presigned URL
+          const uploadResponse = await fetch(data.uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: {
+              'Content-Type': file.type
+            }
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload file to storage');
+          }
+
+          // Get the public URL (you'll need to implement this based on your storage setup)
+          const publicUrl = data.uploadUrl.split('?')[0]; // This is a placeholder - adjust based on your storage setup
+          console.log('Setting logo preview:', publicUrl);
+          setLogoPreview(publicUrl);
+          setLogoUrl(publicUrl);
           setIsLogoUploaded(true);
           setUploadSuccess(true);
         } else {
           throw new Error('Invalid response from server');
         }
       } catch (error) {
-        console.error('Logo upload error:', error);
+        console.error('Upload error:', error);
         setUploadError(error instanceof Error ? error.message : 'Failed to upload logo');
-        setLogoFile(null);
-        setLogoPreview('');
-        setLogoUrl('');
-        setIsLogoUploaded(false);
+        setUploadSuccess(false);
       } finally {
         setIsUploading(false);
       }
@@ -192,8 +211,25 @@ export default function RegisterPage() {
   };
 
   const nextStep = async () => {
+    const isValid = await trigger();
+    if (!isValid) {
+      return;
+    }
+    
     if (currentStep === 1) {
       const email = watch('email');
+      const password = watch('password');
+      
+      // Check password requirements
+      const meetsRequirements = Object.values(passwordRequirements).every(Boolean);
+      if (!meetsRequirements) {
+        setSubmitStatus({
+          type: 'error',
+          message: 'Please ensure your password meets all requirements'
+        });
+        return;
+      }
+      
       if (email) {
         const isAvailable = await checkEmailAvailability(email);
         if (!isAvailable) {
@@ -208,6 +244,10 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: FormData) => {
     if (currentStep < 3) {
+      const isValid = await trigger();
+      if (!isValid) {
+        return;
+      }
       nextStep();
       return;
     }
@@ -229,12 +269,12 @@ export default function RegisterPage() {
         industry: '',
         address: data.address1,
         studioSize: '',
-        isActive: false // Will be activated after email confirmation
+        isActive: false
       };
 
       console.log('Submitting registration:', {
         ...registrationData,
-        password: '******' // Don't log the actual password
+        password: '******'
       });
 
       const response = await fetch('/api/studio/register', {
@@ -245,21 +285,22 @@ export default function RegisterPage() {
         body: JSON.stringify(registrationData),
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.message || 'Registration failed');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
       }
+
+      const result = await response.json();
 
       setSubmitStatus({
         type: 'success',
-        message: 'Registration successful! Redirecting to login...'
+        message: 'Registration successful! Please check your email to verify your account.'
       });
 
-      // Short delay to show success message
+      // Show success message for longer
       setTimeout(() => {
-        window.location.href = '/studio/auth/login';
-      }, 2000);
+        window.location.href = '/studio/auth/login?message=verification-email-sent';
+      }, 3000);
 
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -276,6 +317,19 @@ export default function RegisterPage() {
     setValidatedEmail(email);
     setShowRegistrationForm(true);
     setValue('email', email);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const password = e.target.value;
+    const newRequirements = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+    console.log('Password requirements:', newRequirements); // Debug log
+    setPasswordRequirements(newRequirements);
   };
 
   if (!showRegistrationForm) {
@@ -305,8 +359,12 @@ export default function RegisterPage() {
               Create Your Studio Account
             </h1>
 
-            {submitStatus.type === 'error' && (
-              <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4 mb-6">
+            {submitStatus.type && (
+              <div className={`${
+                submitStatus.type === 'success' 
+                  ? 'bg-green-500/10 border-green-500 text-green-500' 
+                  : 'bg-red-500/10 border-red-500 text-red-500'
+              } border rounded-lg p-4 mb-6`}>
                 {submitStatus.message}
               </div>
             )}
@@ -331,9 +389,18 @@ export default function RegisterPage() {
                         {...register('email', { required: true, validate: validateEmail })}
                         type="email"
                         id="email"
-                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                        className={`w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border ${
+                          emailCheckStatus.isAvailable ? 'border-[#00FFA3] shadow-[0_0_0_1px_#00FFA3]' : 'border-white/10'
+                        }`}
                         placeholder="Enter your email"
                       />
+                      {emailCheckStatus.message && (
+                        <p className={`text-sm mt-1 ${
+                          emailCheckStatus.isAvailable ? 'text-[#00FFA3]' : 'text-red-500'
+                        }`}>
+                          {emailCheckStatus.message}
+                        </p>
+                      )}
                       {errors.email && (
                         <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
                       )}
@@ -341,17 +408,61 @@ export default function RegisterPage() {
 
                     <div>
                       <label htmlFor="password" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
-                        Password
+                        Password <span className="text-white/50">(min. 8 characters)</span>
                       </label>
-                      <input
-                        {...register('password', { required: true, minLength: 8 })}
-                        type="password"
-                        id="password"
-                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
-                        placeholder="Create a password"
-                      />
+                      {(() => {
+                        const { onChange: registerOnChange, ref, ...rest } = register('password', {
+                          required: "Password is required",
+                          validate: {
+                            length: (value) => value.length >= 8 || "Password must be at least 8 characters",
+                            hasUpperCase: (value) => /[A-Z]/.test(value) || "Password must contain an uppercase letter",
+                            hasLowerCase: (value) => /[a-z]/.test(value) || "Password must contain a lowercase letter",
+                            hasNumber: (value) => /[0-9]/.test(value) || "Password must contain a number",
+                            hasSpecialChar: (value) => /[!@#$%^&*(),.?":{}|<>]/.test(value) || "Password must contain a special character"
+                          }
+                        });
+                        
+                        return (
+                          <input
+                            {...rest}
+                            ref={ref}
+                            type="password"
+                            id="password"
+                            className={`w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border ${
+                              Object.values(passwordRequirements).every(Boolean) 
+                                ? 'border-[#00FFA3] shadow-[0_0_0_1px_#00FFA3]' 
+                                : errors.password ? 'border-red-500 shadow-[0_0_0_1px_#ef4444]' : 'border-white/10'
+                            }`}
+                            placeholder="Create a password"
+                            onChange={(e) => {
+                              registerOnChange(e); // Handle form validation
+                              handlePasswordChange(e); // Update requirements display
+                            }}
+                          />
+                        );
+                      })()}
+                      
+                      {/* Password requirements feedback */}
+                      <div className="mt-2 text-sm text-white space-y-1">
+                        <div className={passwordRequirements.length ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • At least 8 characters
+                        </div>
+                        <div className={passwordRequirements.uppercase ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • One uppercase letter
+                        </div>
+                        <div className={passwordRequirements.lowercase ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • One lowercase letter
+                        </div>
+                        <div className={passwordRequirements.number ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • One number
+                        </div>
+                        <div className={passwordRequirements.special ? 'text-[#00FFA3]' : 'text-red-400'}>
+                          • One special character
+                        </div>
+                      </div>
+                      
                       {errors.password && (
-                        <p className="text-red-500 text-sm mt-1">Password must be at least 8 characters</p>
+                        <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
                       )}
                     </div>
 
@@ -368,6 +479,20 @@ export default function RegisterPage() {
                         id="confirmPassword"
                         className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
                         placeholder="Confirm your password"
+                        onChange={(e) => {
+                          const confirmPassword = e.target.value;
+                          const password = watch('password');
+                          
+                          // Update input border color based on password match
+                          const input = e.target;
+                          if (confirmPassword && confirmPassword === password) {
+                            input.classList.add('border-[#00FFA3]', 'shadow-[0_0_0_1px_#00FFA3]');
+                            input.classList.remove('border-white/10');
+                          } else {
+                            input.classList.remove('border-[#00FFA3]', 'shadow-[0_0_0_1px_#00FFA3]');
+                            input.classList.add('border-white/10');
+                          }
+                        }}
                       />
                       {errors.confirmPassword && (
                         <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>

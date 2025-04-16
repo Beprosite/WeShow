@@ -3,6 +3,23 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { s3Client, S3_BUCKET_NAME } from './aws-config';
 import { S3Paths, generateUniqueFileName } from './s3-utils';
 
+function getContentType(fileName: string): string {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
 export async function generateStudioLogoUploadURL(studioId: string, fileName: string): Promise<string> {
   const uniqueFileName = generateUniqueFileName(fileName);
   const key = S3Paths.studioLogo(studioId).getKey(uniqueFileName);
@@ -138,24 +155,5 @@ export async function verifyLogoExists(fileName: string): Promise<boolean> {
   } catch (error) {
     console.error('Error verifying logo:', error);
     return false;
-  }
-}
-
-function getContentType(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'gif':
-      return 'image/gif';
-    case 'mp4':
-      return 'video/mp4';
-    case 'mov':
-      return 'video/quicktime';
-    default:
-      return 'application/octet-stream';
   }
 } 

@@ -5,13 +5,26 @@ const prisma = new PrismaClient();
 async function main() {
   const studios = await prisma.studio.findMany({
     select: {
-      email: true,
+      id: true,
       name: true,
-      createdAt: true
+      email: true,
+      phone: true,
+      logoUrl: true,
+      isActive: true,
+      subscriptionTier: true,
+      contactName: true,
+      contactEmail: true,
+      contactPhone: true,
+      website: true,
+      industry: true,
+      address: true,
+      studioSize: true,
+      createdAt: true,
+      updatedAt: true
     }
   });
   
-  console.log('Existing studios:', studios);
+  console.log('Existing studios:', JSON.stringify(studios, null, 2));
 }
 
 main()

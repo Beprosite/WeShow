@@ -1097,8 +1097,12 @@ const ClientsPage = () => {
               </button>
               <button
                 onClick={() => {
-                  Cookies.remove('token');
-                  router.push('/studio/login');
+                  Cookies.remove('studio_token');
+                  // Clear any other potential auth data
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  // Force a hard redirect to ensure complete logout
+                  window.location.href = 'http://localhost:3000/studio/auth/login';
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors text-sm"
               >

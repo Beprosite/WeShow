@@ -64,39 +64,25 @@ export async function POST(request: Request) {
       Key: key,
       Body: Buffer.from(buffer),
       ContentType: fileType,
-      CacheControl: 'max-age=31536000' // 1 year cache
+      CacheControl: 'max-age=31536000', // 1 year cache
+      ACL: 'public-read'
     });
 
-    try {
-      await s3Client.send(command);
-    } catch (uploadError) {
-      console.error('S3 upload error:', uploadError);
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: uploadError instanceof Error ? uploadError.message : 'Failed to upload to S3'
-        },
-        { status: 500 }
-      );
-    }
+    await s3Client.send(command);
 
     const publicUrl = `https://${S3_BUCKET_NAME}.s3.amazonaws.com/${key}`;
     
-    console.log('Upload successful:', {
-      publicUrl
-    });
-
     return NextResponse.json({
       success: true,
-      publicUrl,
-      key
+      message: 'Logo uploaded successfully',
+      publicUrl
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('Logo upload error:', error);
     return NextResponse.json(
       { 
         success: false, 
-        message: error instanceof Error ? error.message : 'Failed to upload logo'
+        message: error instanceof Error ? error.message : 'Failed to upload logo' 
       },
       { status: 500 }
     );

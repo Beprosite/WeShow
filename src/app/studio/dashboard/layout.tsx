@@ -12,7 +12,7 @@ export default function DashboardLayout({
 
   const handleLogout = () => {
     Cookies.remove('studio_token');
-    router.push('/studio/auth/login');
+    router.push('http://localhost:3000/studio/auth/login');
   };
 
   return (
