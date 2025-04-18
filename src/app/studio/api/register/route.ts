@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { PLAN_LIMITS, PlanTier } from '@/lib/plans';
+import { addDays } from 'date-fns';
 
 export async function POST(request: Request) {
   try {
@@ -83,6 +84,9 @@ export async function POST(request: Request) {
 
     console.log('Plan limits:', planLimits);
 
+    // Set trial end date for free tier
+    const trialEndsAt = planTier === 'Free' ? addDays(new Date(), 14) : null;
+
     console.log('Creating new studio with master admin:', masterAdmin.id);
     // Create new studio
     const studio = await prisma.studio.create({
@@ -98,6 +102,7 @@ export async function POST(request: Request) {
         contactPhone,
         website: website || '',
         address: address || '',
+        trialEndsAt,
         masterAdmin: {
           connect: {
             id: masterAdmin.id
@@ -115,7 +120,8 @@ export async function POST(request: Request) {
         tier: planTier,
         storageLimit: planLimits.storageLimit,
         clientLimit: planLimits.clientLimit,
-        projectsPerClientLimit: planLimits.projectsPerClientLimit
+        projectsPerClientLimit: planLimits.projectsPerClientLimit,
+        trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null
       }
     });
 
@@ -125,7 +131,8 @@ export async function POST(request: Request) {
         studioId: studio.id,
         plan: {
           tier: planTier,
-          features: planLimits.features
+          features: planLimits.features,
+          trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null
         }
       },
       { status: 201 }

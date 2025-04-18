@@ -19,6 +19,7 @@ import {
   Layout,
   CheckCircle2
 } from 'lucide-react';
+import Logo from '@/app/components/Logo';
 
 export default function HomePage() {
   return (
@@ -26,17 +27,21 @@ export default function HomePage() {
       {/* Header */}
       <header className={`${DESIGN_PATTERNS.LAYOUT.maxWidth} mx-auto flex justify-between items-center p-4`}>
         <Link href="/" className="flex items-center">
-          <Image 
-            src="/images/Weshow-logo-white_300px.webp" 
-            alt="WeShow Logo" 
-            width={120} 
-            height={40} 
-            className="object-contain"
-          />
+          <Logo size="md" />
         </Link>
         <div className="flex gap-4">
-          <Link href="/studio/auth/login" className={DESIGN_PATTERNS.BUTTON.secondary}>Log in</Link>
-          <Link href="/studio/auth/signup" className={DESIGN_PATTERNS.BUTTON.primary}>Sign up</Link>
+          <Link 
+            href="/studio/auth/login" 
+            className="bg-[#00A3FF]/20 backdrop-blur-sm text-white px-3 md:px-4 py-1 rounded-full text-xs md:text-sm font-medium shadow-lg shadow-[#00A3FF]/20 border border-[#00A3FF]/30 hover:bg-[#00A3FF]/30 transition-all duration-200"
+          >
+            Log in
+          </Link>
+          <Link 
+            href="/studio/auth/signup" 
+            className="bg-[#00A3FF]/20 backdrop-blur-sm text-white px-3 md:px-4 py-1 rounded-full text-xs md:text-sm font-medium shadow-lg shadow-[#00A3FF]/20 border border-[#00A3FF]/30 hover:bg-[#00A3FF]/30 transition-all duration-200"
+          >
+            Sign up
+          </Link>
         </div>
       </header>
 
@@ -74,7 +79,13 @@ export default function HomePage() {
         <div className="mt-10">
           <div className={DESIGN_PATTERNS.CARD.wrapper}>
             <div className={DESIGN_PATTERNS.CARD.inner}>
-              <Image src="/device-mockup.png" alt="Device Mockup" width={800} height={400} className="rounded-lg" />
+              <Image 
+                src="/device-mockup.png" 
+                alt="Device Mockup" 
+                width={800} 
+                height={400} 
+                className="object-contain w-auto h-auto rounded-lg"
+              />
             </div>
           </div>
         </div>
@@ -446,13 +457,7 @@ export default function HomePage() {
             {/* Brand Column */}
             <div>
               <Link href="/" className="block mb-4">
-                <Image 
-                  src="/images/Weshow-logo-white_300px.webp" 
-                  alt="WeShow Logo" 
-                  width={120} 
-                  height={40} 
-                  className="object-contain"
-                />
+                <Logo size="md" />
               </Link>
               <p className="text-gray-400">Deliver your work like it deserves.</p>
             </div>

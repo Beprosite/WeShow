@@ -29,6 +29,10 @@ model Studio {
   isActive        Boolean   @default(true)
   subscriptionTier String   @default("Free")
   dateFormat      String    @default("MM/DD/YYYY")
+  paymentStatus   String?   // Keep existing column
+  storage         BigInt?   // Keep existing column as is
+  storageUsed     BigInt?   // Make it optional initially
+  trialEndsAt     DateTime? // New column for trial end date
   
   // Contact Person fields
   contactName     String?

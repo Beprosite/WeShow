@@ -3,17 +3,29 @@ import Image from 'next/image';
 
 interface LogoProps {
   className?: string;
+  size?: 'sm' | 'md' | 'lg';
 }
 
-const Logo: React.FC<LogoProps> = ({ className = '' }) => {
+const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
+  const sizes = {
+    sm: { width: 90, height: 22 },
+    md: { width: 120, height: 30 },
+    lg: { width: 150, height: 37 }
+  };
+
+  const { width, height } = sizes[size];
+
   return (
-    <div className={`flex items-center ${className}`}>
+    <div className={`inline-flex items-center ${className}`}>
       <Image
         src="/images/Weshow-logo-white_300px.webp"
         alt="WeShow Logo"
-        width={90}
-        height={22}
-        className="w-auto h-5"
+        width={width}
+        height={height}
+        style={{
+          maxWidth: '100%',
+          height: 'auto'
+        }}
         priority
       />
     </div>

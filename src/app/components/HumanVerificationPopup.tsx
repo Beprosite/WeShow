@@ -19,8 +19,6 @@ export default function HumanVerificationPopup({ onComplete, onClose }: HumanVer
         setProgress(prev => {
           const newProgress = prev + 1;
           if (newProgress >= 100) {
-            setIsComplete(true);
-            onComplete();
             return 100;
           }
           return newProgress;
@@ -31,7 +29,14 @@ export default function HumanVerificationPopup({ onComplete, onClose }: HumanVer
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isHolding, isComplete, onComplete]);
+  }, [isHolding, isComplete]);
+
+  useEffect(() => {
+    if (progress === 100 && !isComplete) {
+      setIsComplete(true);
+      onComplete();
+    }
+  }, [progress, isComplete, onComplete]);
 
   const handleMouseDown = () => {
     setIsHolding(true);
@@ -72,7 +77,7 @@ export default function HumanVerificationPopup({ onComplete, onClose }: HumanVer
           <p className="text-white/60">Please hold the button to verify you're human</p>
         </div>
 
-        <div className="flex flex-col items-center space-y-4 relative z-10">
+        <div className="space-y-4">
           {/* Animated text */}
           <div className="relative w-full h-32 flex items-center justify-center">
             <div className="relative">

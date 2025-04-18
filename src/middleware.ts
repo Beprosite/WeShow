@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import * as jose from 'jose'
 import { JWT_SECRET } from '@/lib/config'
+import { prisma } from '@/lib/prisma'
 
 // Create TextEncoder for jose
 const encoder = new TextEncoder()
@@ -16,8 +17,35 @@ function isExcludedPath(pathname: string): boolean {
     pathname.startsWith('/api/studio/register') ||
     pathname.startsWith('/api/studio/login') ||
     pathname.startsWith('/studio/api/login') ||
-    pathname.startsWith('/studio/auth')
+    pathname.startsWith('/studio/auth') ||
+    pathname.startsWith('/studio/subscription/upgrade') || // Allow access to upgrade page
+    pathname.startsWith('/api/studio/upload/logo') || // Allow logo upload during registration
+    pathname.startsWith('/api/studio/upload/photo') // Allow photo upload during registration
   )
+}
+
+async function checkTrialStatus(studioId: string): Promise<boolean> {
+  try {
+    const studio = await prisma.studio.findUnique({
+      where: { id: studioId },
+      select: { 
+        subscriptionTier: true,
+        trialEndsAt: true
+      }
+    });
+
+    if (!studio) return false;
+
+    // Only check trial expiration for free tier
+    if (studio.subscriptionTier === 'Free' && studio.trialEndsAt) {
+      return new Date() < new Date(studio.trialEndsAt);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error checking trial status:', error);
+    return false;
+  }
 }
 
 export async function middleware(request: NextRequest) {
@@ -57,8 +85,24 @@ export async function middleware(request: NextRequest) {
 
     try {
       const secret = encoder.encode(JWT_SECRET)
-      await jose.jwtVerify(token, secret)
+      const decoded = await jose.jwtVerify(token, secret)
       console.log('Token verified successfully')
+
+      // Check trial status
+      const studioId = decoded.payload.studioId as string
+      const isTrialValid = await checkTrialStatus(studioId)
+
+      if (!isTrialValid) {
+        // Redirect to upgrade page if trial has expired
+        if (!pathname.startsWith('/api')) {
+          const response = NextResponse.redirect(new URL('/studio/subscription/upgrade', request.url))
+          response.headers.set('Cache-Control', 'no-store, max-age=0')
+          response.headers.set('Pragma', 'no-cache')
+          response.headers.set('Expires', '0')
+          return response
+        }
+        return NextResponse.json({ error: 'Trial period has expired' }, { status: 403 })
+      }
       
       // Clone the request headers and add the verified token
       const requestHeaders = new Headers(request.headers)

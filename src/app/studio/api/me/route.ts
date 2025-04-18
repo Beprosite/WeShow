@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withPrisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '@/lib/config';
 import { cookies } from 'next/headers';
@@ -27,63 +27,54 @@ export async function GET(request: Request) {
       const decoded = jwt.verify(token, JWT_SECRET) as { studioId: string; email: string };
       console.log('Token verified successfully for studio:', decoded.studioId);
 
-      // Test database connection
-      try {
-        await prisma.$connect();
-        console.log('Database connection successful');
-      } catch (dbError) {
-        console.error('Database connection error:', dbError);
-        return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
-      }
+      return await withPrisma(async (prisma) => {
+        // Get studio from database
+        const studio = await prisma.studio.findUnique({
+          where: {
+            id: decoded.studioId
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            logoUrl: true,
+            isActive: true,
+            subscriptionTier: true
+          }
+        });
 
-      // Get studio from database
-      const studio = await prisma.studio.findUnique({
-        where: {
-          id: decoded.studioId
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          logoUrl: true,
-          isActive: true,
-          subscriptionTier: true
+        if (!studio) {
+          console.log('Studio not found:', decoded.studioId);
+          return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
         }
+
+        if (!studio.isActive) {
+          console.log('Studio is inactive:', decoded.studioId);
+          return NextResponse.json({ error: 'Studio is inactive' }, { status: 403 });
+        }
+
+        // Transform the data to match the expected format
+        const transformedStudio = {
+          ...studio,
+          logo: studio.logoUrl,
+          subscription: {
+            tier: studio.subscriptionTier || 'Free',
+            status: studio.isActive ? 'active' : 'inactive',
+            expiresAt: null,
+            billingPeriod: 'monthly',
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            price: 0
+          }
+        };
+
+        return NextResponse.json(transformedStudio);
       });
-
-      if (!studio) {
-        console.log('Studio not found:', decoded.studioId);
-        return NextResponse.json({ error: 'Studio not found' }, { status: 404 });
-      }
-
-      if (!studio.isActive) {
-        console.log('Studio is inactive:', decoded.studioId);
-        return NextResponse.json({ error: 'Studio is inactive' }, { status: 403 });
-      }
-
-      // Transform the data to match the expected format
-      const transformedStudio = {
-        ...studio,
-        logo: studio.logoUrl,
-        subscription: {
-          tier: studio.subscriptionTier || 'Free',
-          status: studio.isActive ? 'active' : 'inactive',
-          expiresAt: null,
-          billingPeriod: 'monthly',
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          price: 0
-        }
-      };
-
-      return NextResponse.json(transformedStudio);
     } catch (error) {
       console.error('Token verification error:', error);
       if (error instanceof jwt.JsonWebTokenError) {
         return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
       }
       return NextResponse.json({ error: 'Token verification failed' }, { status: 401 });
-    } finally {
-      await prisma.$disconnect();
     }
   } catch (error) {
     console.error('Error in /studio/api/me:', error);
@@ -124,10 +115,7 @@ export async function PUT(request: Request) {
         );
       }
 
-      // Update studio in database
-      try {
-        await prisma.$connect();
-        
+      return await withPrisma(async (prisma) => {
         const updatedStudio = await prisma.studio.update({
           where: {
             id: decoded.studioId
@@ -158,12 +146,7 @@ export async function PUT(request: Request) {
           message: 'Settings updated successfully',
           data: transformedStudio
         });
-      } catch (dbError) {
-        console.error('Database error:', dbError);
-        return NextResponse.json({ error: 'Failed to update settings in database' }, { status: 500 });
-      } finally {
-        await prisma.$disconnect();
-      }
+      });
     } catch (error) {
       console.error('Token verification error:', error);
       if (error instanceof jwt.JsonWebTokenError) {

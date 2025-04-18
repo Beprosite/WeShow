@@ -62,10 +62,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Skip the initial fetch on login/register pages
+    // Skip the initial fetch on auth pages
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
-      if (path.includes('/auth/login') || path.includes('/auth/register')) {
+      if (path.includes('/auth/login') || 
+          path.includes('/auth/register') || 
+          path.includes('/auth/signup')) {
         return;
       }
       refreshStudioData();

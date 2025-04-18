@@ -26,23 +26,24 @@ type FormData = {
   postalCode: string;
   country: string;
   
-  // Payment Info (if not Free tier)
-  billingAddress1: string;
+  // Payment Info (only for non-free tiers)
+  billingAddress1?: string;
   billingAddress2?: string;
-  billingCity: string;
-  billingStateProvince: string;
-  billingPostalCode: string;
-  billingCountry: string;
-  cardNumber: string;
-  cardExpiry: string;
-  cardCVC: string;
+  billingCity?: string;
+  billingStateProvince?: string;
+  billingPostalCode?: string;
+  billingCountry?: string;
+  cardNumber?: string;
+  cardExpiry?: string;
+  cardCVC?: string;
 };
 
 export default function RegisterPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const rawPlan = searchParams.get('plan') || 'Free';
   const plan = rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1).toLowerCase();
-  const billing = searchParams.get('billing') || 'monthly';
+  const isFreeTier = plan === 'Free';
   const { register, handleSubmit, watch, setValue, formState: { errors }, trigger } = useForm<FormData>();
   const [currentStep, setCurrentStep] = useState(1);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -164,6 +165,11 @@ export default function RegisterPage() {
     }
   };
 
+  const handleEmailValidated = (email: string) => {
+    setValidatedEmail(email);
+    setShowRegistrationForm(true);
+  };
+
   const checkEmailAvailability = async (email: string) => {
     try {
       setEmailCheckStatus({ isChecking: true });
@@ -179,7 +185,6 @@ export default function RegisterPage() {
 
       const data = await response.json();
 
-      // Set the status based on the response
       setEmailCheckStatus({
         isChecking: false,
         isAvailable: data.available,
@@ -196,18 +201,6 @@ export default function RegisterPage() {
       });
       return false;
     }
-  };
-
-  const validateEmail = async (value: string) => {
-    if (!value) return "Email is required";
-    
-    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
-    if (!emailRegex.test(value)) {
-      return "Invalid email address";
-    }
-
-    const isAvailable = await checkEmailAvailability(value);
-    return isAvailable || "This email is already registered";
   };
 
   const nextStep = async () => {
@@ -237,10 +230,14 @@ export default function RegisterPage() {
         }
       }
     }
-    setCurrentStep(prev => Math.min(prev + 1, 3));
-  };
 
-  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+    // For free tier, skip to the final step after profile info
+    if (isFreeTier && currentStep === 2) {
+      setCurrentStep(3);
+    } else {
+      setCurrentStep(prev => Math.min(prev + 1, 3));
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     if (currentStep < 3) {
@@ -313,294 +310,251 @@ export default function RegisterPage() {
     }
   };
 
-  const handleEmailValidated = (email: string) => {
-    setValidatedEmail(email);
-    setShowRegistrationForm(true);
-    setValue('email', email);
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const password = e.target.value;
-    const newRequirements = {
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-    };
-    console.log('Password requirements:', newRequirements); // Debug log
-    setPasswordRequirements(newRequirements);
-  };
-
-  if (!showRegistrationForm) {
-    return <EmailValidationStep onEmailValidated={handleEmailValidated} />;
-  }
-
   return (
     <div className={`min-h-screen ${DESIGN_PATTERNS.COLORS.background} text-white flex flex-col`}>
-      {/* Header */}
-      <header className={`${DESIGN_PATTERNS.LAYOUT.maxWidth} mx-auto flex justify-center items-center p-4`}>
-        <Link href="/" className="flex items-center">
-          <Image 
-            src="/images/Weshow-logo-white_300px.webp" 
-            alt="WeShow Logo" 
-            width={120} 
-            height={40} 
-            className="object-contain"
-          />
-        </Link>
-      </header>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center px-4 sm:px-0">
+        {/* Logo */}
+        <div className="mt-8 mb-[30px]">
+          <Link href="/" className="flex items-center">
+            <Image 
+              src="/images/Weshow-logo-white_300px.webp" 
+              alt="WeShow Logo" 
+              width={120} 
+              height={40} 
+              className="object-contain w-auto h-auto"
+              style={{ width: 'auto', height: 'auto' }}
+            />
+          </Link>
+        </div>
 
-      {/* Registration Form */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className={`${DESIGN_PATTERNS.CARD.wrapper} w-full max-w-2xl mx-auto transform -translate-y-8`}>
-          <div className={`${DESIGN_PATTERNS.CARD.inner} p-6 md:p-8`}>
-            <h1 className={`text-2xl ${DESIGN_PATTERNS.TEXT.heading} mb-6 text-center`}>
-              Create Your Studio Account
-            </h1>
-
-            {submitStatus.type && (
-              <div className={`${
-                submitStatus.type === 'success' 
-                  ? 'bg-green-500/10 border-green-500 text-green-500' 
-                  : 'bg-red-500/10 border-red-500 text-red-500'
-              } border rounded-lg p-4 mb-6`}>
-                {submitStatus.message}
-              </div>
-            )}
-
-            {!showRegistrationForm ? (
+        {/* Registration Form */}
+        <div className="w-full max-w-md px-4 sm:px-0">
+          {!showRegistrationForm ? (
+            <div>
               <EmailValidationStep 
                 onEmailValidated={handleEmailValidated}
                 initialEmail={validatedEmail}
               />
-            ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                {/* Step 1: Account Information */}
-                {currentStep === 1 && (
-                  <div className="space-y-4">
-                    <h2 className={`text-xl ${DESIGN_PATTERNS.TEXT.heading} mb-4`}>Account Information</h2>
-                    
-                    <div>
-                      <label htmlFor="email" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
-                        Email
-                      </label>
-                      <input
-                        {...register('email', { required: true, validate: validateEmail })}
-                        type="email"
-                        id="email"
-                        className={`w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border ${
-                          emailCheckStatus.isAvailable ? 'border-[#00FFA3] shadow-[0_0_0_1px_#00FFA3]' : 'border-white/10'
-                        }`}
-                        placeholder="Enter your email"
-                      />
-                      {emailCheckStatus.message && (
-                        <p className={`text-sm mt-1 ${
-                          emailCheckStatus.isAvailable ? 'text-[#00FFA3]' : 'text-red-500'
-                        }`}>
-                          {emailCheckStatus.message}
-                        </p>
-                      )}
-                      {errors.email && (
-                        <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label htmlFor="password" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
-                        Password <span className="text-white/50">(min. 8 characters)</span>
-                      </label>
-                      {(() => {
-                        const { onChange: registerOnChange, ref, ...rest } = register('password', {
-                          required: "Password is required",
-                          validate: {
-                            length: (value) => value.length >= 8 || "Password must be at least 8 characters",
-                            hasUpperCase: (value) => /[A-Z]/.test(value) || "Password must contain an uppercase letter",
-                            hasLowerCase: (value) => /[a-z]/.test(value) || "Password must contain a lowercase letter",
-                            hasNumber: (value) => /[0-9]/.test(value) || "Password must contain a number",
-                            hasSpecialChar: (value) => /[!@#$%^&*(),.?":{}|<>]/.test(value) || "Password must contain a special character"
-                          }
-                        });
-                        
-                        return (
-                          <input
-                            {...rest}
-                            ref={ref}
-                            type="password"
-                            id="password"
-                            className={`w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border ${
-                              Object.values(passwordRequirements).every(Boolean) 
-                                ? 'border-[#00FFA3] shadow-[0_0_0_1px_#00FFA3]' 
-                                : errors.password ? 'border-red-500 shadow-[0_0_0_1px_#ef4444]' : 'border-white/10'
-                            }`}
-                            placeholder="Create a password"
-                            onChange={(e) => {
-                              registerOnChange(e); // Handle form validation
-                              handlePasswordChange(e); // Update requirements display
-                            }}
-                          />
-                        );
-                      })()}
-                      
-                      {/* Password requirements feedback */}
-                      <div className="mt-2 text-sm text-white space-y-1">
-                        <div className={passwordRequirements.length ? 'text-[#00FFA3]' : 'text-red-400'}>
-                          • At least 8 characters
-                        </div>
-                        <div className={passwordRequirements.uppercase ? 'text-[#00FFA3]' : 'text-red-400'}>
-                          • One uppercase letter
-                        </div>
-                        <div className={passwordRequirements.lowercase ? 'text-[#00FFA3]' : 'text-red-400'}>
-                          • One lowercase letter
-                        </div>
-                        <div className={passwordRequirements.number ? 'text-[#00FFA3]' : 'text-red-400'}>
-                          • One number
-                        </div>
-                        <div className={passwordRequirements.special ? 'text-[#00FFA3]' : 'text-red-400'}>
-                          • One special character
-                        </div>
-                      </div>
-                      
-                      {errors.password && (
-                        <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label htmlFor="confirmPassword" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
-                        Confirm Password
-                      </label>
-                      <input
-                        {...register('confirmPassword', {
-                          required: true,
-                          validate: value => value === watch('password') || "Passwords don't match"
-                        })}
-                        type="password"
-                        id="confirmPassword"
-                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
-                        placeholder="Confirm your password"
-                        onChange={(e) => {
-                          const confirmPassword = e.target.value;
-                          const password = watch('password');
-                          
-                          // Update input border color based on password match
-                          const input = e.target;
-                          if (confirmPassword && confirmPassword === password) {
-                            input.classList.add('border-[#00FFA3]', 'shadow-[0_0_0_1px_#00FFA3]');
-                            input.classList.remove('border-white/10');
-                          } else {
-                            input.classList.remove('border-[#00FFA3]', 'shadow-[0_0_0_1px_#00FFA3]');
-                            input.classList.add('border-white/10');
-                          }
-                        }}
-                      />
-                      {errors.confirmPassword && (
-                        <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 2: Profile Information */}
-                {currentStep === 2 && (
-                  <div className="space-y-4">
-                    <h2 className={`text-xl ${DESIGN_PATTERNS.TEXT.heading} mb-4`}>Profile Information</h2>
-                    
-                    <div>
-                      <label htmlFor="companyName" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
-                        Company Name
-                      </label>
-                      <input
-                        {...register('companyName', { required: true })}
-                        type="text"
-                        id="companyName"
-                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
-                        placeholder="Enter your company name"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="phone" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
-                        Phone Number
-                      </label>
-                      <PhoneInput
-                        value={watch('phone')}
-                        onChange={(value) => setValue('phone', value)}
-                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
-                      />
-                    </div>
-
-                    {/* Logo Upload */}
-                    <div>
-                      <label className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
-                        Company Logo
-                      </label>
-                      <div
-                        onClick={handleLogoClick}
-                        className="w-full h-32 bg-[#0A0A0A] border-2 border-dashed border-white/10 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#00A3FF]/30 transition-colors duration-200"
-                      >
-                        {logoPreview ? (
-                          <Image
-                            src={logoPreview}
-                            alt="Logo preview"
-                            width={100}
-                            height={100}
-                            className="object-contain"
-                          />
-                        ) : (
-                          <div className="text-center">
-                            <p className="text-gray-400">Click to upload logo</p>
-                            <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
-                          </div>
-                        )}
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleLogoChange}
-                          accept="image/*"
-                          className="hidden"
-                        />
-                      </div>
-                      {uploadError && (
-                        <p className="text-red-500 text-sm mt-1">{uploadError}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Navigation Buttons */}
-                <div className="flex justify-between pt-4">
-                  {currentStep > 1 && (
-                    <button
-                      type="button"
-                      onClick={prevStep}
-                      className="px-6 py-3 rounded-full inline-flex items-center justify-center 
-                        bg-white/10 backdrop-blur-sm text-white 
-                        shadow-lg shadow-white/10 
-                        border border-white/20 
-                        hover:bg-white/20 hover:shadow-white/20
-                        transition-all duration-200"
-                    >
-                      Back
-                    </button>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className={`ml-auto px-6 py-3 rounded-full inline-flex items-center justify-center 
-                      bg-[#00A3FF]/20 backdrop-blur-sm text-white 
-                      shadow-lg shadow-[#00A3FF]/20 
-                      border border-[#00A3FF]/30 
-                      hover:bg-[#00A3FF]/30 hover:shadow-[#00A3FF]/30
-                      transition-all duration-200
-                      ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {currentStep < 3 ? 'Next' : isSubmitting ? 'Creating Account...' : 'Create Account'}
-                  </button>
+              <div className="text-center mt-2.5">
+                <p className="text-sm text-white/60">
+                  By proceeding, you agree to the
+                </p>
+                <p className="text-sm text-white/60">
+                  <Link href="/terms" className="text-[#00A3FF] hover:underline">
+                    Terms of Service
+                  </Link>
+                  {' '}and{' '}
+                  <Link href="/privacy" className="text-[#00A3FF] hover:underline">
+                    Privacy Policy
+                  </Link>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {submitStatus.type && (
+                <div className={`${
+                  submitStatus.type === 'success' 
+                    ? 'bg-green-500/10 border-green-500 text-green-500' 
+                    : 'bg-red-500/10 border-red-500 text-red-500'
+                } border rounded-lg p-4 mb-6`}>
+                  {submitStatus.message}
                 </div>
-              </form>
-            )}
-          </div>
+              )}
+
+              {/* Step 1: Account Information */}
+              {currentStep === 1 && (
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="email" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                      Email
+                    </label>
+                    <input
+                      {...register('email', { required: true })}
+                      type="email"
+                      id="email"
+                      className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      placeholder="Enter your email"
+                    />
+                    {errors.email && (
+                      <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                      Password <span className="text-white/50">(min. 8 characters)</span>
+                    </label>
+                    <input
+                      {...register('password', { required: "Password is required" })}
+                      type="password"
+                      id="password"
+                      className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      placeholder="Create a password"
+                    />
+                    {errors.password && (
+                      <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="confirmPassword" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                      Confirm Password
+                    </label>
+                    <input
+                      {...register('confirmPassword', {
+                        required: true,
+                        validate: value => value === watch('password') || "Passwords don't match"
+                      })}
+                      type="password"
+                      id="confirmPassword"
+                      className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      placeholder="Confirm your password"
+                    />
+                    {errors.confirmPassword && (
+                      <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Profile Information */}
+              {currentStep === 2 && (
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="companyName" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                      Company Name
+                    </label>
+                    <input
+                      {...register('companyName', { required: true })}
+                      type="text"
+                      id="companyName"
+                      className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      placeholder="Enter your company name"
+                    />
+                    {errors.companyName && (
+                      <p className="text-red-500 text-sm mt-1">{errors.companyName.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="phone" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                      Phone Number
+                    </label>
+                    <PhoneInput
+                      value={watch('phone')}
+                      onChange={(value) => setValue('phone', value)}
+                      className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                    />
+                    {errors.phone && (
+                      <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="address1" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                      Address
+                    </label>
+                    <input
+                      {...register('address1', { required: true })}
+                      type="text"
+                      id="address1"
+                      className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      placeholder="Enter your address"
+                    />
+                    {errors.address1 && (
+                      <p className="text-red-500 text-sm mt-1">{errors.address1.message}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Payment Information (only for non-free tiers) */}
+              {currentStep === 3 && !isFreeTier && (
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="cardNumber" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                      Card Number
+                    </label>
+                    <input
+                      {...register('cardNumber', { required: true })}
+                      type="text"
+                      id="cardNumber"
+                      className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      placeholder="Enter card number"
+                    />
+                    {errors.cardNumber && (
+                      <p className="text-red-500 text-sm mt-1">{errors.cardNumber.message}</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="cardExpiry" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                        Expiry Date
+                      </label>
+                      <input
+                        {...register('cardExpiry', { required: true })}
+                        type="text"
+                        id="cardExpiry"
+                        placeholder="MM/YY"
+                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      />
+                      {errors.cardExpiry && (
+                        <p className="text-red-500 text-sm mt-1">{errors.cardExpiry.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor="cardCVC" className={`block text-sm ${DESIGN_PATTERNS.TEXT.secondary} mb-1`}>
+                        CVC
+                      </label>
+                      <input
+                        {...register('cardCVC', { required: true })}
+                        type="text"
+                        id="cardCVC"
+                        className="w-full bg-[#0A0A0A] text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A3FF] border border-white/10"
+                      />
+                      {errors.cardCVC && (
+                        <p className="text-red-500 text-sm mt-1">{errors.cardCVC.message}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between pt-4">
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(prev => prev - 1)}
+                    className="px-6 py-3 rounded-full inline-flex items-center justify-center 
+                      bg-white/10 backdrop-blur-sm text-white 
+                      shadow-lg shadow-white/10 
+                      border border-white/20 
+                      hover:bg-white/20 hover:shadow-white/20
+                      transition-all duration-200"
+                  >
+                    Back
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`ml-auto px-6 py-3 rounded-full inline-flex items-center justify-center 
+                    bg-[#00A3FF]/20 backdrop-blur-sm text-white 
+                    shadow-lg shadow-[#00A3FF]/20 
+                    border border-[#00A3FF]/30 
+                    hover:bg-[#00A3FF]/30 hover:shadow-[#00A3FF]/30
+                    transition-all duration-200
+                    ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {currentStep < 3 ? 'Next' : isSubmitting ? 'Creating Account...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>
