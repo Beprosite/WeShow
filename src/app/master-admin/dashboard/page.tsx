@@ -6,7 +6,8 @@ import {
   RiUserLine,
   RiProjectorLine,
   RiImageLine,
-  RiMoneyDollarCircleLine
+  RiMoneyDollarCircleLine,
+  RiDeleteBin6Line
 } from 'react-icons/ri'
 import Cookies from 'js-cookie'
 
@@ -39,6 +40,8 @@ export default function MasterAdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -74,6 +77,34 @@ export default function MasterAdminDashboard() {
     window.location.href = '/master-admin/login'
   }
 
+  const handleResetStudios = async () => {
+    try {
+      setIsResetting(true);
+      const res = await fetch('/api/master-admin/reset-studios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to reset studios');
+      }
+
+      // Refresh dashboard stats
+      await fetchDashboardStats();
+      setIsResetModalOpen(false);
+      
+    } catch (err) {
+      console.error('Error resetting studios:', err);
+      setError('Failed to reset studios. Please try again.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const statsConfig = [
     { name: 'Total Studios', value: stats.totalStudios.toString(), icon: RiUserLine, color: 'bg-blue-500' },
     { name: 'Active Studios', value: stats.activeStudios.toString(), icon: RiProjectorLine, color: 'bg-green-500' },
@@ -86,14 +117,68 @@ export default function MasterAdminDashboard() {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-bold">Master Admin Dashboard</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Logout
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setIsResetModalOpen(true)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+            >
+              <RiDeleteBin6Line />
+              Reset All Studios
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
         
+        {/* Reset Confirmation Modal */}
+        {isResetModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full">
+              <h2 className="text-xl font-bold mb-4">Reset All Studios</h2>
+              <p className="text-gray-300 mb-6">
+                Are you sure you want to reset all studios? This action will:
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Delete all studios</li>
+                  <li>Delete all clients</li>
+                  <li>Delete all projects</li>
+                  <li>Delete all sections and media</li>
+                </ul>
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setIsResetModalOpen(false)}
+                  className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  disabled={isResetting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResetStudios}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  disabled={isResetting}
+                >
+                  {isResetting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white"></div>
+                      Resetting...
+                    </>
+                  ) : (
+                    <>
+                      <RiDeleteBin6Line />
+                      Reset All
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-4 mb-6">
             {error}

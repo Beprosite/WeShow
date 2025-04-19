@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextRequest } from 'next/server'
 import * as jose from 'jose'
 import { JWT_SECRET } from '@/lib/config'
-import { prisma } from '@/lib/prisma'
+import { getPrismaClient } from '@/lib/prisma'
 
 // Create TextEncoder for jose
 const encoder = new TextEncoder()
@@ -18,33 +18,44 @@ function isExcludedPath(pathname: string): boolean {
     pathname.startsWith('/api/studio/login') ||
     pathname.startsWith('/studio/api/login') ||
     pathname.startsWith('/studio/auth') ||
+    pathname.startsWith('/studio/registration-success') || // Allow access to success page
     pathname.startsWith('/studio/subscription/upgrade') || // Allow access to upgrade page
     pathname.startsWith('/api/studio/upload/logo') || // Allow logo upload during registration
-    pathname.startsWith('/api/studio/upload/photo') // Allow photo upload during registration
+    pathname.startsWith('/api/studio/upload/photo') || // Allow photo upload during registration
+    pathname === '/studio/login' ||
+    pathname === '/studio/register' ||
+    pathname.startsWith('/api/studio/auth') ||
+    pathname.startsWith('/api/studio/register')
   )
 }
 
 async function checkTrialStatus(studioId: string): Promise<boolean> {
   try {
+    const prisma = await getPrismaClient()
     const studio = await prisma.studio.findUnique({
       where: { id: studioId },
       select: { 
-        subscriptionTier: true,
-        trialEndsAt: true
+        createdAt: true,
+        subscriptionTier: true 
       }
-    });
+    })
 
-    if (!studio) return false;
+    if (!studio) return false
 
-    // Only check trial expiration for free tier
-    if (studio.subscriptionTier === 'Free' && studio.trialEndsAt) {
-      return new Date() < new Date(studio.trialEndsAt);
+    // Add 5-minute grace period after registration
+    const registrationTime = new Date(studio.createdAt)
+    const now = new Date()
+    const gracePeriodMs = 5 * 60 * 1000 // 5 minutes in milliseconds
+    
+    if (now.getTime() - registrationTime.getTime() < gracePeriodMs) {
+      return true // Skip trial check during grace period
     }
 
-    return true;
+    // For now, all studios are considered active since trial system is not fully implemented
+    return true
   } catch (error) {
-    console.error('Error checking trial status:', error);
-    return false;
+    console.error('Error checking trial status:', error)
+    return false
   }
 }
 

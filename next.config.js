@@ -3,7 +3,14 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ['weshow.drapp.ai', 'my-project-manager-studio-content-dev.s3.amazonaws.com', 'images.unsplash.com', 'picsum.photos', 'commondatastorage.googleapis.com'],
+    domains: [
+      'weshow.drapp.ai',
+      'my-project-manager-studio-content-dev.s3.amazonaws.com',
+      'images.unsplash.com',
+      'picsum.photos',
+      'commondatastorage.googleapis.com',
+      's3.eu-north-1.amazonaws.com'
+    ],
     remotePatterns: [
       {
         protocol: 'https',
@@ -22,6 +29,11 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'commondatastorage.googleapis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 's3.eu-north-1.amazonaws.com',
+        pathname: '/dev.drapp.ai-files/**',
       }
     ],
   },

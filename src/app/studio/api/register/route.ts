@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { PLAN_LIMITS, PlanTier } from '@/lib/plans';
 import { addDays } from 'date-fns';
+import { sendWelcomeEmail } from '@/app/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -124,6 +125,14 @@ export async function POST(request: Request) {
         trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null
       }
     });
+
+    // After successful registration, send welcome email
+    try {
+      await sendWelcomeEmail(email, name);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail registration if email fails
+    }
 
     return NextResponse.json(
       { 

@@ -16,7 +16,7 @@
 // IMPORTS
 // =============================================================================
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import Modal from '@/components/ui/Modal';
@@ -991,6 +991,7 @@ const ClientsPage = () => {
     logo: ''
   });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [newUser, setNewUser] = useState<{ firstName: string; isNew: boolean } | null>(null);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -1008,6 +1009,16 @@ const ClientsPage = () => {
     };
 
     fetchClients();
+  }, []);
+
+  useEffect(() => {
+    // Check for new user data in localStorage
+    const storedNewUser = localStorage.getItem('newUser');
+    if (storedNewUser) {
+      setNewUser(JSON.parse(storedNewUser));
+      // Clear the new user flag after showing the message
+      localStorage.removeItem('newUser');
+    }
   }, []);
 
   const handleAddClient = async (newClient: Client) => {
@@ -1491,6 +1502,25 @@ const ClientsPage = () => {
           clientName={editingClient?.company || ''}
           clientId={editingClient?.id || ''}
         />
+
+        {/* Welcome Message */}
+        <AnimatePresence>
+          {newUser?.isNew && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="bg-[#00A3FF]/10 backdrop-blur-sm border border-[#00A3FF]/30 rounded-lg p-6 mb-8"
+            >
+              <h1 className="text-2xl font-light text-white mb-4">
+                Welcome to WeShow, {newUser.firstName}! 👋
+              </h1>
+              <p className="text-white/60">
+                Get started by adding your first client. We'll help you manage your projects and keep everything organized.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

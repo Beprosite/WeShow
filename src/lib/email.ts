@@ -1,32 +1,68 @@
 import nodemailer from 'nodemailer';
+import { getWelcomeEmailTemplate } from '../app/lib/emailTemplates';
 
-// Create reusable transporter object using SMTP transport
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  host: process.env.SMTP_HOST || 'mail.privateemail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: process.env.SMTP_SECURE === 'true',
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: process.env.SMTP_USER || 'info@drapp.ai',
+    pass: process.env.SMTP_PASSWORD
   },
+  name: 'WeShow'
 });
 
-export async function sendWelcomeEmail(to: string, studioName: string) {
+interface EmailOptions {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
+
+export async function sendEmail({ to, subject, text, html }: EmailOptions) {
   try {
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"My Project Manager" <noreply@myprojectmanager.com>',
+      from: '"WeShow" <info@drapp.ai>',
+      replyTo: 'info@drapp.ai',
       to,
-      subject: 'Welcome to My Project Manager!',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>Welcome to My Project Manager!</h1>
-          <p>Dear ${studioName},</p>
-          <p>Thank you for registering with My Project Manager. We're excited to have you on board!</p>
-          <p>You can now log in to your studio dashboard using your email address.</p>
-          <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
-          <p>Best regards,<br>The My Project Manager Team</p>
-        </div>
+      subject,
+      text,
+      html: html || text
+    });
+    console.log(`Email sent successfully to ${to}`);
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
+}
+
+export async function sendWelcomeEmail(to: string, studioName: string, firstName: string) {
+  try {
+    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://weshow.drapp.ai'}/studio/auth/login`;
+    const template = getWelcomeEmailTemplate({
+      firstName: firstName,
+      loginUrl
+    });
+
+    await sendEmail({
+      to,
+      subject: template.subject,
+      text: `
+        Welcome to WeShow!
+        
+        Hi ${firstName},
+        
+        Thanks for signing up for WeShow. We're very excited to have you on board.
+        
+        To get started using WeShow, please login to your account here: ${loginUrl}
+        
+        Need help getting started? Check out our documentation or reply to this email with any questions.
+        The WeShow support team is always excited to help you.
+        
+        Thanks,
+        The WeShow.Drapp.ai Team
       `,
+      html: template.html
     });
     console.log('Welcome email sent successfully');
     return true;
@@ -43,10 +79,21 @@ export async function sendStudioRegistrationNotification(studioDetails: {
   subscriptionTier: string;
 }) {
   try {
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"My Project Manager" <noreply@myprojectmanager.com>',
-      to: process.env.ADMIN_EMAIL || 'admin@myprojectmanager.com',
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL || 'admin@weshow.ai',
       subject: 'New Studio Registration',
+      text: `
+        New Studio Registration
+        
+        A new studio has registered:
+        
+        - Studio Name: ${studioDetails.name}
+        - Email: ${studioDetails.email}
+        - Contact Name: ${studioDetails.contactName}
+        - Subscription Tier: ${studioDetails.subscriptionTier}
+        
+        Please review the registration in the master admin dashboard.
+      `,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1>New Studio Registration</h1>
@@ -59,7 +106,7 @@ export async function sendStudioRegistrationNotification(studioDetails: {
           </ul>
           <p>Please review the registration in the master admin dashboard.</p>
         </div>
-      `,
+      `
     });
     console.log('Admin notification email sent successfully');
     return true;

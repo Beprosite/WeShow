@@ -37,15 +37,8 @@ export default function StudioLoginPage() {
 
       console.log('Login response:', { status: res.status, ok: res.ok });
 
-      // Check if we need to handle plan upgrade
-      const plan = searchParams.get('plan');
-      const billing = searchParams.get('billing');
-      
-      if (plan && billing) {
-        router.push(`/studio/dashboard/upgrade/confirm?plan=${plan}&billing=${billing}`);
-      } else {
-        router.push('/studio/dashboard/clients');
-      }
+      // Always redirect to dashboard/clients after successful login
+      router.push('/studio/dashboard/clients');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'An error occurred during login');
@@ -60,11 +53,12 @@ export default function StudioLoginPage() {
       <header className={`${DESIGN_PATTERNS.LAYOUT.maxWidth} mx-auto flex justify-center items-center p-4`}>
         <Link href="/" className="flex items-center">
           <Image 
-            src="/images/Weshow-logo-white_300px.webp" 
+            src="https://s3.eu-north-1.amazonaws.com/dev.drapp.ai-files/email-assets/logos/Weshow-logo-white_300px.png"
             alt="WeShow Logo" 
-            width={120} 
-            height={40} 
-            className="object-contain"
+            width={300}
+            height={100}
+            className="h-10 w-auto object-contain"
+            priority
           />
         </Link>
       </header>

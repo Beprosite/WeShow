@@ -34,7 +34,9 @@ export async function checkEmail(email: string) {
     return {
       success: true,
       available: !existingStudio,
-      message: existingStudio ? 'This email is already registered' : 'Email is available'
+      message: existingStudio 
+        ? 'An account with this email address already exists. Sign in'
+        : 'Email is available'
     }
   } catch (error) {
     console.error('Email check error:', error);

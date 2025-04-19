@@ -33,6 +33,7 @@ model Studio {
   storage         BigInt?   // Keep existing column as is
   storageUsed     BigInt?   // Make it optional initially
   trialEndsAt     DateTime? // New column for trial end date
+  marketingConsent Boolean  @default(false) // Track marketing email preferences
   
   // Contact Person fields
   contactName     String?

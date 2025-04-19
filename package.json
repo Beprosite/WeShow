@@ -7,13 +7,16 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test-email": "ts-node --project tsconfig.test.json src/app/lib/test-welcome-email.ts"
   },
   "prisma": {
-    "schema": "./prisma/schema.prisma"
+    "schema": "./prisma/schema.prisma",
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
+    "@aws-sdk/client-ses": "^3.787.0",
     "@aws-sdk/s3-request-presigner": "^3.777.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -24,6 +27,8 @@
     "@prisma/client": "^4.16.2",
     "@types/file-saver": "^2.0.7",
     "@types/jszip": "^3.4.0",
+    "@types/lodash": "^4.17.16",
+    "@types/nodemailer": "^6.4.17",
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/uuid": "^10.0.0",
     "axios": "^1.6.2",
@@ -37,9 +42,12 @@
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1",
+    "lodash": "^4.17.21",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.488.0",
     "next": "^14.2.26",
+    "nodemailer": "^6.10.1",
+    "nodemailer-smtp-transport": "^2.7.4",
     "react": "^18.3.1",
     "react-beautiful-dnd": "^13.1.1",
     "react-dnd": "^16.0.1",

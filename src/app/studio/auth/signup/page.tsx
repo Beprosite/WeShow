@@ -159,11 +159,12 @@ export default function SignupPage() {
         <div className="flex justify-between items-center">
           <Link href="/" className="flex items-center">
             <Image 
-              src="/images/Weshow-logo-white_300px.webp" 
+              src="https://s3.eu-north-1.amazonaws.com/dev.drapp.ai-files/email-assets/logos/Weshow-logo-white_300px.png"
               alt="WeShow Logo" 
-              width={120} 
-              height={40} 
-              className="object-contain"
+              width={300}
+              height={100}
+              className="h-10 w-auto object-contain"
+              priority
             />
           </Link>
           <Link 
@@ -335,7 +336,7 @@ export default function SignupPage() {
           <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-[#00A3FF]/10 backdrop-blur-sm border border-[#00A3FF]/20 shadow-lg shadow-[#00A3FF]/10">
             <span className={`text-sm font-medium ${DESIGN_PATTERNS.TEXT.secondary}`}>Powered by</span>
             <Image 
-              src="/Powered-By_logo-stack_CMYK.webp" 
+              src="https://s3.eu-north-1.amazonaws.com/dev.drapp.ai-files/email-assets/logos/Powered-By_logo-stack_CMYK.png"
               alt="AWS" 
               width={120} 
               height={40} 

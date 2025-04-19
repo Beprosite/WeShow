@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MasterAdmin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  studios   Studio[]
+}
+
+model Studio {
+  id               String       @id @default(cuid())
+  name             String
+  email            String       @unique
+  password         String
+  phone            String?
+  logoUrl          String?
+  isActive         Boolean      @default(true)
+  subscriptionTier String       @default("Free")
+  dateFormat       String       @default("MM/DD/YYYY")
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  contactPosition  String?
+  website          String?
+  industry         String?
+  address          String?
+  studioSize       String?
+  paymentStatus    String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  masterAdminId    String?
+  storageUsed      BigInt?
+  trialEndsAt      DateTime?
+  storage          BigInt?
+  clients          Client[]
+  projects         Project[]
+  masterAdmin      MasterAdmin? @relation(fields: [masterAdminId], references: [id])
+
+  @@index([masterAdminId])
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  urlSlug   String?   @unique
+  studioId  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  studio    Studio?   @relation(fields: [studioId], references: [id])
+  projects  Project[]
+
+  @@index([studioId])
+}
+
+model Project {
+  id                  String    @id @default(cuid())
+  name                String
+  status              String    @default("בתהליך")
+  thumbnailUrl        String?
+  googleDriveFolderId String?
+  videoLink           String?
+  cost                Float
+  paymentStatus       String    @default("UNPAID")
+  lastUpdate          DateTime  @default(now())
+  studioId            String?
+  clientId            String?
+  heroPhoto           String?
+  videos              Json?     @default("[]")
+  photos              Json?     @default("[]")
+  title               String?
+  description         String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  media               Media[]
+  client              Client?   @relation(fields: [clientId], references: [id])
+  studio              Studio?   @relation(fields: [studioId], references: [id])
+  sections            Section[]
+
+  @@index([studioId])
+  @@index([clientId])
+}
+
+model Section {
+  id        String   @id @default(cuid())
+  name      String
+  heroPhoto String?
+  videos    Json?    @default("[]")
+  photos    Json?    @default("[]")
+  projectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  url       String
+  type      String
+  filename  String
+  size      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projectId String?
+  userId    String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  avatar    String?
+  media     Media[]
+}
+
+
+// introspectionSchemaVersion: NonPrisma 
+

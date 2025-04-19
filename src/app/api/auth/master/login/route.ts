@@ -16,7 +16,11 @@ export async function POST(request: Request) {
     const admin = await prisma.masterAdmin.findUnique({
       where: { username }
     })
-    console.log('Auth endpoint: Database lookup result:', { found: !!admin })
+    console.log('Auth endpoint: Database lookup result:', { 
+      found: !!admin,
+      username: admin?.username,
+      passwordLength: admin?.password?.length
+    })
 
     if (!admin) {
       console.log('Auth endpoint: Admin not found')
@@ -27,7 +31,14 @@ export async function POST(request: Request) {
     }
 
     // Compare password using bcrypt
+    console.log('Auth endpoint: Attempting password comparison')
+    console.log('Auth endpoint: Input password length:', password.length)
+    console.log('Auth endpoint: Stored password length:', admin.password.length)
+    console.log('Auth endpoint: Stored password starts with $2a$ or $2b$:', admin.password.startsWith('$2a$') || admin.password.startsWith('$2b$'))
+    
     const isValidPassword = await bcrypt.compare(password, admin.password)
+    console.log('Auth endpoint: Password comparison result:', isValidPassword)
+    
     if (!isValidPassword) {
       console.log('Auth endpoint: Invalid password')
       return NextResponse.json(

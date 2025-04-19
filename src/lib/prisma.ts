@@ -31,7 +31,7 @@ export async function getPrismaClient() {
       }
 
       prisma = new PrismaClient({
-        log: ['error', 'warn'],
+        log: ['error', 'warn', 'query'],
         datasources: {
           db: {
             url: process.env.DATABASE_URL

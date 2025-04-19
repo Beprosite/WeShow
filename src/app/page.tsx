@@ -82,9 +82,11 @@ export default function HomePage() {
               <Image 
                 src="/device-mockup.png" 
                 alt="Device Mockup" 
-                width={800} 
-                height={400} 
-                className="object-contain w-auto h-auto rounded-lg"
+                width={1200} 
+                height={600} 
+                quality={100}
+                priority
+                className="w-full h-auto object-contain rounded-lg"
               />
             </div>
           </div>
